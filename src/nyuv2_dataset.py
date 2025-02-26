@@ -26,4 +26,6 @@ class NYUv2Dataset(Dataset):
         label = torch.from_numpy(np.load(self.labels[idx]))
         depth = torch.from_numpy(np.load(self.depth[idx])).squeeze(2)
         normal = torch.from_numpy(np.load(self.normals[idx])).permute(2, 0, 1)
-        return image, label, depth, normal
+        # return image, label, depth, normal
+        out_dict = {'segmentation': label, 'depth': depth, 'normal': normal}
+        return image, out_dict

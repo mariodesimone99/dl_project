@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from torchmetrics.segmentation import MeanIoU
 from torchmetrics.classification import MulticlassAccuracy
 from torchmetrics.regression import MeanAbsoluteError
-from utils import MeanAbsoluteRelativeError, AngleDistance, DotProductLoss, add_plt, compute_lambdas, reset_stats, update_losses, save_model_opt, ignore_index_seg, update_stats
+from utils import MeanAbsoluteRelativeError, AngleDistance, DotProductLoss, add_plt, plot_dict, compute_lambdas, reset_stats, update_losses, save_model_opt, ignore_index_seg, update_stats
 import os
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
@@ -21,6 +21,7 @@ from torch.utils.tensorboard import SummaryWriter
 #TODO: remove sigmoid from everywhere and add it to the output of the model
 #TODO: in multitask training implement the loss computation as vector to avoid lots of if statements
 #TODO: check if the computation of the lambdas is correct for the 3 tasks case 
+#TODO: make function to plot both train and val losses and stats
 
 class Trainer:
     def __init__(self, model, opt):
@@ -274,11 +275,11 @@ class Trainer:
             # total_loss_seg = 0
             # total_loss_depth = 0
             losses_epoch = {k: 0 for k in self.plt_loss_train}
-            for x, y_seg, y_dis in tqdm(train_dl):
+            for x, y_dict in tqdm(train_dl):
                 self.opt.zero_grad()
                 
                 # losses = self._compute_loss_multitask(x, y_seg, y_dis, stats_seg, stats_depth)
-                losses = self._compute_loss_multitask(x, {'segmentation': y_seg, 'depth': y_dis}, self.stats)
+                losses = self._compute_loss_multitask(x, y_dict, self.stats)
                 loss = torch.sum([self.lambdas[k]*losses[k] for k in losses.keys()])
                 # if len(self.model.tasks) == 3:
                 #     loss_seg, loss_depth, loss_normal = self._compute_loss_multitask(x, y_seg, y_dis, stats_seg, stats_depth, stats_normal)
@@ -370,40 +371,66 @@ class Trainer:
                     print(f"{k}: {stats_tmp[k].compute().cpu()}")
                 print("\n")
 
-        _, ax = plt.subplots(4, 2, figsize=(40, 40)) if not grad else plt.subplots(5, 2, figsize=(50, 50))
-        ax[0][0].plot(plt_losses_train['seg'])
-        ax[0][0].set_title('Segmentation Loss')
-        ax[0][1].plot(plt_losses_train['depth'])
-        ax[0][1].set_title('Depth Loss')
-        ax[1][0].plot(plt_lambdas['lambda0'])
-        ax[1][0].plot(plt_lambdas['lambda1'])
-        ax[1][0].set_title('Lambdas')
-        ax[1][1].plot(plt_losses_train['total'])
-        ax[1][1].set_title('Total Loss')
-        ax[2][0].plot(plt_stats_train['miou'])
-        ax[2][0].set_title('Mean IoU')
-        ax[2][1].plot(plt_stats_train['pix_acc'])
-        ax[2][1].set_title('Pixel Accuracy')
-        ax[3][0].plot(plt_stats_train['mae'])
-        ax[3][0].set_title('Mean Absolute Error')
-        ax[3][1].plot(plt_stats_train['mre'])
-        ax[3][1].set_title('Mean Absolute Relative Error')
-        if grad:
-            ax[4][0].plot(plt_grad)
-            ax[4][0].set_title('Gradient Norm')
-        if save:
-            plt.savefig(f"./models/{self.model.name}/{self.model.name}_train{epochs}.png")
-            torch.save(self.model.state_dict(), f"./models/{self.model.name}/{self.model.name}_train{epochs}.pth")
-
+        plt_train_dict = {**self.plt_loss_train, **self.plt_stats, **self.plt_lambdas}
+        plt_train_dict = {**plt_train_dict, 'grad': self.plt_grad} if grad else plt_train_dict
+        train_path = f"./models/{self.model.name}/{self.model.name}_train{epochs}.png"
+        plot_dict(plt_train_dict, train_path)
+        # nrows, ncols = len(plt_train_dict)//2, 2
+        # _, ax = plt.subplots(nrows, ncols)
+        # for i, k in enumerate(plt_train_dict.keys()):
+        #     ax[i//ncols][i%ncols].plot(plt_train_dict[k])
+        #     ax[i//ncols][i%ncols].set_title(k)
+        # if save:
+        #     plt.savefig(f"./models/{self.model.name}/{self.model.name}_train{epochs}.png")
+        torch.save(self.model.state_dict(), f"./models/{self.model.name}/{self.model.name}_train{epochs}.pth") if save else None
+        
         if val_dl != None:
-            _, ax = plt.subplots(3, 1, figsize=(20, 20))
-            ax[0].plot(plt_losses_val['seg'])
-            ax[0].set_title('Segmentation Loss')
-            ax[1].plot(plt_losses_val['depth'])
-            ax[1].set_title('Depth Loss')
-            ax[2].plot(plt_losses_val['total'])
-            ax[2].set_title('Total Loss')
-            plt.savefig(f"./models/{self.model.name}/{self.model.name}_val{epochs}.png") if save else None
+            plt_val_dict = {**plt_losses_val, **plt_stats_val}
+            val_path = f"./models/{self.model.name}/{self.model.name}_val{epochs}.png"
+            plot_dict(plt_val_dict, val_path)
+            # nrows, ncols = len(plt_val_dict)//2, 2
+            # _, ax = plt.subplots(nrows, ncols)
+            # for i, k in enumerate(plt_val_dict.keys()):
+            #     ax[i//ncols][i%ncols].plot(plt_val_dict[k])
+            #     ax[i//ncols][i%ncols].set_title(k)
+            # plt.savefig(f"./models/{self.model.name}/{self.model.name}_val{epochs}.png") if save else None
+            
+        # fig, ax = plt.subplots(4, 2, figsize=(40, 40))
+
+        # _, ax = plt.subplots(4, 2, figsize=(40, 40)) if not grad else plt.subplots(5, 2, figsize=(50, 50))
+        # ax[0][0].plot(plt_losses_train['seg'])
+        # ax[0][0].set_title('Segmentation Loss')
+        # ax[0][1].plot(plt_losses_train['depth'])
+        # ax[0][1].set_title('Depth Loss')
+        # ax[1][0].plot(plt_lambdas['lambda0'])
+        # ax[1][0].plot(plt_lambdas['lambda1'])
+        # ax[1][0].set_title('Lambdas')
+        # ax[1][1].plot(plt_losses_train['total'])
+        # ax[1][1].set_title('Total Loss')
+        # ax[2][0].plot(plt_stats_train['miou'])
+        # ax[2][0].set_title('Mean IoU')
+        # ax[2][1].plot(plt_stats_train['pix_acc'])
+        # ax[2][1].set_title('Pixel Accuracy')
+        # ax[3][0].plot(plt_stats_train['mae'])
+        # ax[3][0].set_title('Mean Absolute Error')
+        # ax[3][1].plot(plt_stats_train['mre'])
+        # ax[3][1].set_title('Mean Absolute Relative Error')
+        # if grad:
+        #     ax[4][0].plot(plt_grad)
+        #     ax[4][0].set_title('Gradient Norm')
+        # if save:
+        #     plt.savefig(f"./models/{self.model.name}/{self.model.name}_train{epochs}.png")
+        #     torch.save(self.model.state_dict(), f"./models/{self.model.name}/{self.model.name}_train{epochs}.pth")
+
+        # if val_dl != None:
+        #     _, ax = plt.subplots(3, 1, figsize=(20, 20))
+        #     ax[0].plot(plt_losses_val['seg'])
+        #     ax[0].set_title('Segmentation Loss')
+        #     ax[1].plot(plt_losses_val['depth'])
+        #     ax[1].set_title('Depth Loss')
+        #     ax[2].plot(plt_losses_val['total'])
+        #     ax[2].set_title('Total Loss')
+        #     plt.savefig(f"./models/{self.model.name}/{self.model.name}_val{epochs}.png") if save else None
 
     def _val_epoch_multitask(self, val_dl, stats_val):
         with torch.no_grad():
@@ -420,9 +447,9 @@ class Trainer:
             # mae = MeanAbsoluteError().to(self.device)
             # mre = MeanAbsoluteRelativeError().to(self.device)
             # stats_depth = {'mae':mae, 'mre':mre}
-            for x, y_seg, y_dis in tqdm(val_dl):
+            for x, y_dict in tqdm(val_dl):
                 # loss_seg, loss_depth = self._compute_loss_multitask(x, y_seg, y_dis, stats_seg, stats_depth)
-                losses = self._compute_loss_multitask(x, {'segmentation': y_seg, 'depth': y_dis}, stats_val)
+                losses = self._compute_loss_multitask(x, y_dict, stats_val)
                 loss = torch.sum(losses.values())
                 for k in losses.keys():
                     losses_epoch[k] += losses[k].item()

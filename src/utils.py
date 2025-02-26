@@ -91,6 +91,14 @@ def add_plt(plt, data):
     for k in data.keys():
         plt[k].append(data[k].compute().cpu()) if isinstance(data[k], Metric) else plt[k].append(data[k])
 
+def plot_dict(plt_dict, path=None):
+    nrows, ncols = len(plt_dict)//2, 2
+    _, ax = plt.subplots(nrows, ncols)
+    for i, k in enumerate(plt_dict.keys()):
+        ax[i//ncols][i%ncols].plot(plt_dict[k])
+        ax[i//ncols][i%ncols].set_title(k)
+    plt.savefig(path) if path else None
+
 def compute_lambdas(losses_seg, losses_depth, T, K):
     w_seg = np.mean(losses_seg['new']) / np.mean(losses_seg['old'])
     w_depth = np.mean(losses_depth['new']) / np.mean(losses_depth['old'])
