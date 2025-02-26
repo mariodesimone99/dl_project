@@ -1,0 +1,3 @@
+model_name : "stan_dep"
+filter : [64, 128, 256, 512, 1024]
+classes : 0
