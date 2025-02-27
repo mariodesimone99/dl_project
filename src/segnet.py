@@ -6,7 +6,7 @@ class SegNet(nn.Module):
     def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, mid_layers=4):
         super().__init__()
         self.name = "segnet"
-        self.tasks = ['segmentation']
+        self.task = ['segmentation']
         filter = [64, 128, 256, 512, 512]
         self.classes = classes + 1
         self.enc_dec = EncDecNet(filter, mid_layers)
@@ -20,6 +20,6 @@ class SegNet(nn.Module):
     def forward(self, x):
         logits = self.enc_dec(x)
         logits = self.seg_head(logits)
-        logits_dict = {'segmentation': logits}
+        logits_dict = {self.task[0]: logits}
         return logits_dict
         # return logits
