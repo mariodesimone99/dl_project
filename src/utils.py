@@ -99,11 +99,29 @@ def plot_dict(plt_dict, path=None):
         ax[i//ncols][i%ncols].set_title(k)
     plt.savefig(path) if path else None
 
-def compute_lambdas(losses_seg, losses_depth, T, K):
-    w_seg = np.mean(losses_seg['new']) / np.mean(losses_seg['old'])
-    w_depth = np.mean(losses_depth['new']) / np.mean(losses_depth['old'])
-    w = F.softmax(torch.tensor([w_seg/T, w_depth/T]), dim=0)*K
-    return w
+# def compute_lambdas(losses_seg, losses_depth, T, K):
+#     w_seg = np.mean(losses_seg['new']) / np.mean(losses_seg['old'])
+#     w_depth = np.mean(losses_depth['new']) / np.mean(losses_depth['old'])
+#     w = F.softmax(torch.tensor([w_seg/T, w_depth/T]), dim=0)*K
+#     return w
+
+def compute_lambdas(losses_new, losses_old, K, T=2):
+    w = []
+    for k in losses_new.keys():
+        w_tmp = np.mean(losses_new[k]) / np.mean(losses_old[k])
+        w.append(w_tmp/T)
+    w = F.softmax(torch.tensor(w), dim=0)*K
+    return dict(zip(losses_new.keys(), w))
+
+# def update_losses(losses_seg, losses_depth):
+#     losses_seg['old'] = losses_seg['new']
+#     losses_depth['old'] = losses_depth['new']
+#     losses_seg['new'] = []
+#     losses_depth['new'] = []
+def update_losses(losses_new, losses_old):
+    for k in losses_new.keys():
+        losses_old[k] = losses_new[k]
+        losses_new[k] = []
 
 def update_stats(stats, x, y, stats_keys):
     for k in stats_keys:
@@ -112,12 +130,6 @@ def update_stats(stats, x, y, stats_keys):
 def reset_stats(stats):
     for k in stats.keys():
         stats[k].reset()
-
-def update_losses(losses_seg, losses_depth):
-    losses_seg['old'] = losses_seg['new']
-    losses_depth['old'] = losses_depth['new']
-    losses_seg['new'] = []
-    losses_depth['new'] = []
 
 def save_model_opt(model, opt, epochs):
     torch.save(model.state_dict(), f"./models/{model.name}/{model.name}_train{epochs}.pth")

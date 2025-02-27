@@ -114,7 +114,10 @@ class MTAN(nn.Module):
             logits.append(self.attnet_task[i](enc_dict, dec_dict))
         logits_seg = self.seg_head(logits[0])
         logits_depth = self.depth_head(logits[1])
+        logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
         if len(self.tasks) == 3:
             logits_normal = self.normal_head(logits[2])
-            return logits_seg, logits_depth, logits_normal
-        return logits_seg, logits_depth
+            #return logits_seg, logits_depth, logits_normal
+            logits_dict['normal'] = logits_normal
+        #return logits_seg, logits_depth
+        return logits_dict

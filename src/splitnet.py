@@ -47,7 +47,10 @@ class SplitNet(nn.Module):
         logits = self.enc_dec(x)
         logits_seg = self.seg_head(logits)
         logits_depth = self.depth_head(logits)
+        logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
         if len(self.tasks) == 3:
             logits_normal = self.normal_head(logits)
-            return logits_seg, logits_depth, logits_normal
-        return logits_seg, logits_depth
+            # return logits_seg, logits_depth, logits_normal
+            logits_dict['normal'] = logits_normal
+        return logits_dict
+        # return logits_seg, logits_depth

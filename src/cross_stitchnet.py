@@ -105,4 +105,6 @@ class CrossStitchNet(nn.Module):
                     logits_seg = modA(logits_seg)
                     logits_depth = modB(logits_depth)
                     logits_normal = modC(logits_normal)
-            return logits_seg, logits_depth, logits_normal
+                logits_dict = {'segmentation': logits_seg, 'depth':logits_depth, 'normal':logits_normal}
+            #return logits_seg, logits_depth, logits_normal
+            return logits_dict

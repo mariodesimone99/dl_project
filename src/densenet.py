@@ -82,7 +82,10 @@ class DenseNet(nn.Module):
         _, _, _, out_dict = self.sh_net(x)
         logits_seg = self.seg_net(x, out_dict)
         logits_depth = self.depth_net(x, out_dict)
+        logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
         if len(self.tasks) == 3:
-            logits_normals = self.norm_net(x, out_dict)
-            return logits_seg, logits_depth, logits_normals
-        return logits_seg, logits_depth
+            logits_normal = self.norm_net(x, out_dict)
+            logits_dict['normal'] = logits_normal
+            #return logits_seg, logits_depth, logits_normals
+        return logits_dict
+        #return logits_seg, logits_depth
