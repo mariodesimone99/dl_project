@@ -11,4 +11,7 @@ class DepthNet(SegNet):
 
     def forward(self, x):
         logits = super().forward(x)
-        return self.activation(logits)
+        logits = self.activation(logits)
+        logits_dict = {'depth': logits}
+        return logits_dict
+        #return self.activation(logits)

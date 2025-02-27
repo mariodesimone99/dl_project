@@ -63,29 +63,43 @@ class DenseNet(nn.Module):
         self.tasks = tasks
         self.classes = classes + 1
         self.sh_net = SharedNet(filter)
-        self.seg_net = TaskNet(filter, self.classes)
+        self.tasks_net = nn.ModuleDict()
+        for task in self.tasks:
+            if task == 'depth':
+                self.tasks_net[task] = TaskNet(filter, classes=1)
+            elif task == 'segmentation':
+                self.tasks_net[task] = TaskNet(filter, classes=self.classes)
+            elif task == 'normal':
+                self.tasks_net[task] = TaskNet(filter, classes=3)
+            else:
+                raise ValueError("Invalid task")
         
-        if len(self.tasks) == 2:
-            self.depth_net = nn.Sequential(
-                TaskNet(filter, classes=1), 
-                nn.Sigmoid()
-            )
-        else:
-            self.depth_net = nn.Sequential(
-                TaskNet(filter, classes=1), 
-                nn.ReLU()
-            )
-            self.norm_net = TaskNet(filter, classes=3)
+        # self.seg_net = TaskNet(filter, self.classes)
+        
+        # if len(self.tasks) == 2:
+        #     self.depth_net = nn.Sequential(
+        #         TaskNet(filter, classes=1), 
+        #         nn.Sigmoid()
+        #     )
+        # else:
+        #     self.depth_net = nn.Sequential(
+        #         TaskNet(filter, classes=1), 
+        #         nn.ReLU()
+        #     )
+        #     self.norm_net = TaskNet(filter, classes=3)
         init_weights(self)
 
     def forward(self, x):
         _, _, _, out_dict = self.sh_net(x)
-        logits_seg = self.seg_net(x, out_dict)
-        logits_depth = self.depth_net(x, out_dict)
-        logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
-        if len(self.tasks) == 3:
-            logits_normal = self.norm_net(x, out_dict)
-            logits_dict['normal'] = logits_normal
-            #return logits_seg, logits_depth, logits_normals
+        logits_dict = {}
+        for key in self.tasks:
+            logits_dict[key] = self.tasks_net[key](x, out_dict)
+        # logits_seg = self.seg_net(x, out_dict)
+        # logits_depth = self.depth_net(x, out_dict)
+        # logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
+        # if len(self.tasks) == 3:
+        #     logits_normal = self.norm_net(x, out_dict)
+        #     logits_dict['normal'] = logits_normal
+            # return logits_seg, logits_depth, logits_normals
         return logits_dict
         #return logits_seg, logits_depth

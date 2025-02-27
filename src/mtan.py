@@ -81,43 +81,64 @@ class AttNet(nn.Module):
         return logits
     
 class MTAN(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth', 'normals']):
+    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth', 'normal']):
         super().__init__()
         self.name = "mtan"
         self.classes = classes + 1 #background
         self.tasks = tasks
         self.sh_net = SharedNet(filter)
-        self.attnet_task = nn.ModuleList([AttNet(filter) for _ in range(len(self.tasks))])
-        #to train with cross entropy loss
-        self.seg_head = nn.Conv2d(filter[0], self.classes, kernel_size=1)
-        #to train with L1 loss
-        if 'normals' in self.tasks:
-            self.normal_head = nn.Sequential(
-                nn.Conv2d(filter[0], 3, kernel_size=1),
-                nn.Tanh()
-            )
-            self.depth_head = nn.Sequential(
-            nn.Conv2d(filter[0], 1, kernel_size=1), 
-            nn.ReLU()
-        )
-        else:
-            self.depth_head = nn.Sequential(
-            nn.Conv2d(filter[0], 1, kernel_size=1), 
-            nn.Sigmoid()
-        )
+        self.attnet_task = nn.ModuleDict(zip(self.tasks, [AttNet(filter) for _ in range(len(self.tasks))]))
+        # self.attnet_task = nn.ModuleList([AttNet(filter) for _ in range(len(self.tasks))])
+        # to train with cross entropy loss
+        # self.seg_head = nn.Conv2d(filter[0], self.classes, kernel_size=1)
+        # #to train with L1 loss
+        # if 'normals' in self.tasks:
+        #     self.normal_head = nn.Sequential(
+        #         nn.Conv2d(filter[0], 3, kernel_size=1),
+        #         nn.Tanh()
+        #     )
+        #     self.depth_head = nn.Sequential(
+        #     nn.Conv2d(filter[0], 1, kernel_size=1), 
+        #     nn.ReLU()
+        # )
+        # else:
+        #     self.depth_head = nn.Sequential(
+        #     nn.Conv2d(filter[0], 1, kernel_size=1), 
+        #     nn.Sigmoid()
+        # )
+        self.heads = nn.ModuleDict()
+        for k in self.tasks:
+            if k == 'segmentation':
+                self.heads[k] = nn.Conv2d(filter[0], self.classes, kernel_size=1)
+            elif k == 'depth':
+                self.heads[k] = nn.Sequential(
+                    nn.Conv2d(filter[0], 1, kernel_size=1), 
+                    nn.ReLU()
+                )
+            elif k == 'normal':
+                self.heads[k] = nn.Sequential(
+                    nn.Conv2d(filter[0], 3, kernel_size=1),
+                    nn.Tanh()
+                )
+            else:
+                raise ValueError("Invalid Task")
         init_weights(self)
 
     def forward(self, x):
         enc_dict, dec_dict, _, _ = self.sh_net(x)
-        logits = []
-        for i in range(len(self.tasks)):
-            logits.append(self.attnet_task[i](enc_dict, dec_dict))
-        logits_seg = self.seg_head(logits[0])
-        logits_depth = self.depth_head(logits[1])
-        logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
-        if len(self.tasks) == 3:
-            logits_normal = self.normal_head(logits[2])
-            #return logits_seg, logits_depth, logits_normal
-            logits_dict['normal'] = logits_normal
-        #return logits_seg, logits_depth
+        # logits = []
+        # for i in range(len(self.tasks)):
+        #     logits.append(self.attnet_task[i](enc_dict, dec_dict))
+        # logits_seg = self.seg_head(logits[0])
+        # logits_depth = self.depth_head(logits[1])
+        # logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
+        # if len(self.tasks) == 3:
+        #     logits_normal = self.normal_head(logits[2])
+        #     #return logits_seg, logits_depth, logits_normal
+        #     logits_dict['normal'] = logits_normal
+        # #return logits_seg, logits_depth
+        # return logits_dict
+        logits_dict = {}
+        for k in self.tasks:
+            logits_dict[k] = self.heads[k](self.attnet_task[k](enc_dict, dec_dict))
         return logits_dict

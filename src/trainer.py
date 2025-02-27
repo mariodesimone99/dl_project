@@ -76,23 +76,23 @@ class Trainer:
         self.lambdas = {k: 1 for k in self.model.tasks}
         #self.lambdas = np.array([1, 1]) if len(self.model.tasks) == 2 else np.array([1, 1, 1])
         
-    def _compute_loss_singletask(self, x, y, stats):
-        x = x.to(self.device).to(torch.float)
-        y = y.to(self.device)
-        output = self.model(x)
+    # def _compute_loss_singletask(self, x, y, stats):
+    #     x = x.to(self.device).to(torch.float)
+    #     y = y.to(self.device)
+    #     output = self.model(x)
         
-        if isinstance(self.loss_fn, nn.CrossEntropyLoss):
-            y = y.to(torch.long)
-            loss = self.loss_fn(output, y)
-            preds = torch.argmax(output, dim=1)
-            preds_flat, y_flat = ignore_index_seg(preds, y)
-            update_stats(stats, preds_flat, y_flat)
-        else:
-            y = y.to(torch.float)
-            loss = self.loss_fn(output.squeeze(1), y)
-            preds = output.squeeze(1)
-            update_stats(stats, preds, y)
-        return loss  
+    #     if isinstance(self.loss_fn, nn.CrossEntropyLoss):
+    #         y = y.to(torch.long)
+    #         loss = self.loss_fn(output, y)
+    #         preds = torch.argmax(output, dim=1)
+    #         preds_flat, y_flat = ignore_index_seg(preds, y)
+    #         update_stats(stats, preds_flat, y_flat)
+    #     else:
+    #         y = y.to(torch.float)
+    #         loss = self.loss_fn(output.squeeze(1), y)
+    #         preds = output.squeeze(1)
+    #         update_stats(stats, preds, y)
+    #     return loss  
 
     #def _compute_loss_multitask(self, x, y_seg, y_dis, stats_seg, stats_depth):
     # Convention: y_list = [y_seg, y_dis, y_normal]
@@ -136,115 +136,115 @@ class Trainer:
         #update_stats(stats_depth, output_depth.squeeze(1), y_dis)
         return losses
 
-    def _train_singletask(self, train_dl, val_dl=None, epochs=10, save=False, check=5, grad=False):
-        plt_loss_train = []
-        plt_grad = []
-        if isinstance(self.loss_fn, nn.CrossEntropyLoss):
-            miou = MeanIoU(num_classes=self.model.classes, per_class=False, include_background=False, input_format='index').to(self.device)
-            pix_acc = MulticlassAccuracy(num_classes=self.model.classes, multidim_average='global', average='micro').to(self.device)
-            stats = {'miou':miou, 'pix_acc':pix_acc}
-        else:
-            mae = MeanAbsoluteError().to(self.device)
-            mre = MeanAbsoluteRelativeError().to(self.device)
-            stats = {'mae':mae, 'mre':mre}
-        stats_str = list(stats.keys())
-        plt_stats_train = {stats_str[0]: [], stats_str[1]: []}
-        if val_dl != None:
-            plt_loss_val = []
-            plt_stats_val = {stats_str[0]: [], stats_str[1]: []}
+    # def _train_singletask(self, train_dl, val_dl=None, epochs=10, save=False, check=5, grad=False):
+    #     # plt_loss_train = []
+    #     # plt_grad = []
+    #     # if isinstance(self.loss_fn, nn.CrossEntropyLoss):
+    #     #     miou = MeanIoU(num_classes=self.model.classes, per_class=False, include_background=False, input_format='index').to(self.device)
+    #     #     pix_acc = MulticlassAccuracy(num_classes=self.model.classes, multidim_average='global', average='micro').to(self.device)
+    #     #     stats = {'miou':miou, 'pix_acc':pix_acc}
+    #     # else:
+    #     #     mae = MeanAbsoluteError().to(self.device)
+    #     #     mre = MeanAbsoluteRelativeError().to(self.device)
+    #     #     stats = {'mae':mae, 'mre':mre}
+    #     # stats_str = list(stats.keys())
+    #     # plt_stats_train = {stats_str[0]: [], stats_str[1]: []}
+    #     if val_dl != None:
+    #         plt_loss_val = []
+    #         plt_stats_val = {stats_str[0]: [], stats_str[1]: []}
 
-        if save and not os.path.exists(f"./models/{self.model.name}"): 
-            os.makedirs(f"./models/{self.model.name}")
-        for epoch in range(epochs):
-            self.model.train()
-            reset_stats(stats)
+    #     if save and not os.path.exists(f"./models/{self.model.name}"): 
+    #         os.makedirs(f"./models/{self.model.name}")
+    #     for epoch in range(epochs):
+    #         self.model.train()
+    #         reset_stats(stats)
 
-            total_loss = 0
-            for x, y_seg, y_dis in tqdm(train_dl):
-                y = y_seg.squeeze(dim=1) if isinstance(self.loss_fn, nn.CrossEntropyLoss) else y_dis
+    #         total_loss = 0
+    #         for x, y_seg, y_dis in tqdm(train_dl):
+    #             y = y_seg.squeeze(dim=1) if isinstance(self.loss_fn, nn.CrossEntropyLoss) else y_dis
 
-                self.opt.zero_grad()
-                loss = self._compute_loss_singletask(x, y, stats)
-                loss.backward()
-                self.opt.step()
+    #             self.opt.zero_grad()
+    #             loss = self._compute_loss_singletask(x, y, stats)
+    #             loss.backward()
+    #             self.opt.step()
                 
-                total_loss += loss.item()
-            total_loss /= len(train_dl)
-            writer_string = 'Train/Loss/Segmentation' if isinstance(self.loss_fn, nn.CrossEntropyLoss) else 'Train/Loss/Depth'
-            self.writer.add_scalar(writer_string, total_loss, epoch)
-            plt_loss_train.append(total_loss)
-            add_plt(plt_stats_train, stats)
-            if grad:
-                grad_norm = self._compute_grad()
-                plt_grad.append(grad_norm)
-                self.writer.add_scalar('Train/Gradient', grad_norm, epoch)
-            if epoch % check == 0:
-                print(f"Epoch {epoch}/{epochs} - Train Loss: {total_loss:.4f}")
-                for k in stats.keys():
-                    print(f"{k}: {stats[k].compute().cpu()}")
-                print(f"Gradient Norm: {grad_norm}\n")
-            for k in stats.keys():
-                self.writer.add_scalar(f'Train/{k}', stats[k].compute().cpu(), epoch)
-            save_model_opt(self.model, self.opt, epoch) if save else None
+    #             total_loss += loss.item()
+    #         total_loss /= len(train_dl)
+    #         writer_string = 'Train/Loss/Segmentation' if isinstance(self.loss_fn, nn.CrossEntropyLoss) else 'Train/Loss/Depth'
+    #         self.writer.add_scalar(writer_string, total_loss, epoch)
+    #         plt_loss_train.append(total_loss)
+    #         add_plt(plt_stats_train, stats)
+    #         if grad:
+    #             grad_norm = self._compute_grad()
+    #             plt_grad.append(grad_norm)
+    #             self.writer.add_scalar('Train/Gradient', grad_norm, epoch)
+    #         if epoch % check == 0:
+    #             print(f"Epoch {epoch}/{epochs} - Train Loss: {total_loss:.4f}")
+    #             for k in stats.keys():
+    #                 print(f"{k}: {stats[k].compute().cpu()}")
+    #             print(f"Gradient Norm: {grad_norm}\n")
+    #         for k in stats.keys():
+    #             self.writer.add_scalar(f'Train/{k}', stats[k].compute().cpu(), epoch)
+    #         save_model_opt(self.model, self.opt, epoch) if save else None
                                     
-            if val_dl != None and epoch % check == 0:
-                losses_tmp, stats_tmp = self._val_epoch_singletask(val_dl, epoch)
-                plt_loss_val.append(losses_tmp)
-                for k in stats_tmp.keys():
-                    plt_stats_val[k].append(stats_tmp[k].compute().cpu())
+    #         if val_dl != None and epoch % check == 0:
+    #             losses_tmp, stats_tmp = self._val_epoch_singletask(val_dl, epoch)
+    #             plt_loss_val.append(losses_tmp)
+    #             for k in stats_tmp.keys():
+    #                 plt_stats_val[k].append(stats_tmp[k].compute().cpu())
 
-        _, ax = plt.subplots(2, 2, figsize=(40, 40))
-        ax[0][0].plot(plt_loss_train)
-        ax[0][0].set_title('Loss')
-        ax[0][1].plot(plt_stats_train[stats_str[0]])
-        ax[0][1].set_title(stats_str[0])
-        ax[1][0].plot(plt_stats_train[stats_str[1]])
-        ax[1][0].set_title(stats_str[1])
-        if grad:
-            ax[1][1].plot(plt_grad)
-            ax[1][1].set_title('Gradient Norm')
-        if save:
-            plt.savefig(f"./models/{self.model.name}/{self.model.name}_train{epochs}.png")
-            torch.save(self.model.state_dict(), f"./models/{self.model.name}/{self.model.name}_train{epochs}.pth")
+    #     _, ax = plt.subplots(2, 2, figsize=(40, 40))
+    #     ax[0][0].plot(plt_loss_train)
+    #     ax[0][0].set_title('Loss')
+    #     ax[0][1].plot(plt_stats_train[stats_str[0]])
+    #     ax[0][1].set_title(stats_str[0])
+    #     ax[1][0].plot(plt_stats_train[stats_str[1]])
+    #     ax[1][0].set_title(stats_str[1])
+    #     if grad:
+    #         ax[1][1].plot(plt_grad)
+    #         ax[1][1].set_title('Gradient Norm')
+    #     if save:
+    #         plt.savefig(f"./models/{self.model.name}/{self.model.name}_train{epochs}.png")
+    #         torch.save(self.model.state_dict(), f"./models/{self.model.name}/{self.model.name}_train{epochs}.pth")
 
-        if val_dl != None:
-            _, ax = plt.subplots(3, 1, figsize=(20, 20))
-            ax[0].plot(plt_loss_val)
-            ax[0].set_title('Loss')
-            for i, k in enumerate(stats.keys()):
-                ax[i+1].plot(plt_stats_val[k])
-                ax[i+1].set_title(k)
-            plt.savefig(f"./models/{self.model.name}/{self.model.name}_val{epochs}.png") if save else None
+    #     if val_dl != None:
+    #         _, ax = plt.subplots(3, 1, figsize=(20, 20))
+    #         ax[0].plot(plt_loss_val)
+    #         ax[0].set_title('Loss')
+    #         for i, k in enumerate(stats.keys()):
+    #             ax[i+1].plot(plt_stats_val[k])
+    #             ax[i+1].set_title(k)
+    #         plt.savefig(f"./models/{self.model.name}/{self.model.name}_val{epochs}.png") if save else None
 
-    def _val_epoch_singletask(self, dl, epoch):
-        with torch.no_grad():
-            self.model.eval()
-            total_loss = 0
+    # def _val_epoch_singletask(self, dl, epoch):
+    #     with torch.no_grad():
+    #         self.model.eval()
+    #         total_loss = 0
 
-            if isinstance(self.loss_fn, nn.CrossEntropyLoss):
-                miou = MeanIoU(num_classes=self.model.classes, per_class=False, include_background=False, input_format='index').to(self.device)
-                pix_acc = MulticlassAccuracy(num_classes=self.model.classes, multidim_average='global', average='micro').to(self.device)
-                stats = {'miou': miou, 'pix_acc': pix_acc}
-            else:
-                mae = MeanAbsoluteError().to(self.device)
-                mre = MeanAbsoluteRelativeError().to(self.device)
-                stats = {'mae': mae, 'mre': mre}
-            for x, y_seg, y_dis in tqdm(dl):
-                y = y_seg.squeeze(dim=1) if isinstance(self.loss_fn, nn.CrossEntropyLoss) else y_dis
-                loss = self._compute_loss_singletask(x, y, stats)
+    #         if isinstance(self.loss_fn, nn.CrossEntropyLoss):
+    #             miou = MeanIoU(num_classes=self.model.classes, per_class=False, include_background=False, input_format='index').to(self.device)
+    #             pix_acc = MulticlassAccuracy(num_classes=self.model.classes, multidim_average='global', average='micro').to(self.device)
+    #             stats = {'miou': miou, 'pix_acc': pix_acc}
+    #         else:
+    #             mae = MeanAbsoluteError().to(self.device)
+    #             mre = MeanAbsoluteRelativeError().to(self.device)
+    #             stats = {'mae': mae, 'mre': mre}
+    #         for x, y_seg, y_dis in tqdm(dl):
+    #             y = y_seg.squeeze(dim=1) if isinstance(self.loss_fn, nn.CrossEntropyLoss) else y_dis
+    #             loss = self._compute_loss_singletask(x, y, stats)
                     
-                total_loss += loss.item()
-            total_loss /= len(dl)
-            writer_string = 'Val/Loss/Segmentation' if isinstance(self.loss_fn, nn.CrossEntropyLoss) else 'Val/Loss/Depth'
-            self.writer.add_scalar(writer_string, total_loss, epoch)
-            print("Val Loss: ", total_loss)
-            for k in stats.keys():
-                print(f"{k}: {stats[k].compute().cpu()}")
-                self.writer.add_scalar(f'Val/{k}', stats[k].compute().cpu(), epoch)
-            print("\n")
-        return total_loss, stats
+    #             total_loss += loss.item()
+    #         total_loss /= len(dl)
+    #         writer_string = 'Val/Loss/Segmentation' if isinstance(self.loss_fn, nn.CrossEntropyLoss) else 'Val/Loss/Depth'
+    #         self.writer.add_scalar(writer_string, total_loss, epoch)
+    #         print("Val Loss: ", total_loss)
+    #         for k in stats.keys():
+    #             print(f"{k}: {stats[k].compute().cpu()}")
+    #             self.writer.add_scalar(f'Val/{k}', stats[k].compute().cpu(), epoch)
+    #         print("\n")
+    #     return total_loss, stats
 
-    def _train_multitask_dwa(self, train_dl, val_dl=None, epochs=10, save=False, check=5, grad=False, dwa=None):
+    def _train_multitask(self, train_dl, val_dl=None, epochs=10, save=False, check=5, grad=False, dwa=None):
         # lambdas = np.array([1, 1])
         # losses_seg = {'new': [], 'old': []}
         # losses_depth = {'new': [], 'old': []}
@@ -292,7 +292,7 @@ class Trainer:
                 
                 # losses = self._compute_loss_multitask(x, y_seg, y_dis, stats_seg, stats_depth)
                 losses = self._compute_loss_multitask(x, y_dict, self.stats)
-                loss = torch.sum([self.lambdas[k]*losses[k] for k in losses.keys()]) if dwa else torch.sum(losses.values()) 
+                loss = torch.sum([self.lambdas[k]*losses[k] for k in losses.keys()]) if dwa else torch.sum(torch.tensor(list(losses.values()))) 
                 # if len(self.model.tasks) == 3:
                 #     loss_seg, loss_depth, loss_normal = self._compute_loss_multitask(x, y_seg, y_dis, stats_seg, stats_depth, stats_normal)
                 #     loss = lambdas[0]*loss_seg + lambdas[1]*loss_depth + lambdas[2]*loss_normal
@@ -321,7 +321,7 @@ class Trainer:
                         update_losses(self.track_losses_new, self.track_losses_old)
                         count_losses = 0
                     for k in self.plt_lambdas.keys():
-                        plt.lambdas[k].append(self.lambdas[k].item())
+                        self.plt_lambdas[k].append(self.lambdas[k].item())
 
                 # if len(losses_seg['new']) == 2*update_lambdas and len(losses_seg['old']) == 0:
                 #     losses_seg['old'] = losses_seg['new'][0:update_lambdas]
@@ -367,8 +367,9 @@ class Trainer:
                 self.writer.add_scalar('Train/Gradient', grad_norm, epoch) 
             if epoch % check == 0:
                 print(f"Epoch {epoch}/{epochs} - Train Total Loss: {losses_epoch['total']:.4f}")
-                for k1, k2 in zip(self.lambdas.keys(), losses):
-                    print(f"lambda_{k1} : {self.lambdas[k1]} - Train Loss {k2}: {losses_epoch[k2]:.4f}")
+                if dwa:
+                    for k1, k2 in zip(self.lambdas.keys(), losses):
+                        print(f"lambda_{k1} : {self.lambdas[k1]} - Train Loss {k2}: {losses_epoch[k2]:.4f}")
                 # print(f"Lambda_0: {lambdas[0]} - Train Loss Segmentation: {total_loss_seg:.4f}")
                 # print(f"Lambda_1: {lambdas[1]} - Train Loss Depth: {total_loss_depth:.4f}")
                 # for k in print_stats.keys():
@@ -477,7 +478,7 @@ class Trainer:
             for x, y_dict in tqdm(val_dl):
                 # loss_seg, loss_depth = self._compute_loss_multitask(x, y_seg, y_dis, stats_seg, stats_depth)
                 losses = self._compute_loss_multitask(x, y_dict, stats_val)
-                loss = torch.sum(losses.values())
+                loss = torch.sum(torch.tensor(list(losses.values()))) 
                 for k in losses.keys():
                     losses_epoch[k] += losses[k].item()
                 losses_epoch['total'] += loss.item()
@@ -513,9 +514,9 @@ class Trainer:
             grad_norm += p_grad**2
         return grad_norm**0.5
 
-    def train(self, train_dl, val_dl=None, epochs=10, save=False, check=5, grad=True):
+    def train(self, train_dl, val_dl=None, epochs=10, save=False, check=5, grad=True, dwa=None):
         if len(self.model.tasks) > 1:
-           self._train_multitask_dwa(train_dl, val_dl, epochs, save, check, grad, update_lambdas=10, T=2)
+           self._train_multitask(train_dl, val_dl, epochs, save, check, grad, dwa)
         else:
             self._train_singletask(train_dl, val_dl, epochs, save, check, grad)
        

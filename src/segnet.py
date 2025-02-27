@@ -20,4 +20,6 @@ class SegNet(nn.Module):
     def forward(self, x):
         logits = self.enc_dec(x)
         logits = self.seg_head(logits)
-        return logits
+        logits_dict = {'segmentation': logits}
+        return logits_dict
+        # return logits
