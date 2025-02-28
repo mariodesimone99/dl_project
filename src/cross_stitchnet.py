@@ -129,6 +129,7 @@ class CrossStitchNet(nn.Module):
                     apply_cross_stitch = False
             if apply_cross_stitch:
                 logits_dict = self._apply_cross_stitch(logits_dict)
+                apply_cross_stitch = False
         return logits_dict
         # logits_seg = x 
         # logits_depth = x
