@@ -83,7 +83,7 @@ class AttNet(nn.Module):
 class MTAN(nn.Module):
     def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth', 'normal']):
         super().__init__()
-        self.name = "mtan"
+        task_str = '_'
         self.classes = classes + 1 #background
         self.tasks = tasks
         self.sh_net = SharedNet(filter)
@@ -107,21 +107,25 @@ class MTAN(nn.Module):
         #     nn.Sigmoid()
         # )
         self.heads = nn.ModuleDict()
-        for k in self.tasks:
-            if k == 'segmentation':
-                self.heads[k] = nn.Conv2d(filter[0], self.classes, kernel_size=1)
-            elif k == 'depth':
-                self.heads[k] = nn.Sequential(
+        for task in self.tasks:
+            if task == 'segmentation':
+                self.heads[task] = nn.Conv2d(filter[0], self.classes, kernel_size=1)
+                task_str += 'seg_'
+            elif task == 'depth':
+                self.heads[task] = nn.Sequential(
                     nn.Conv2d(filter[0], 1, kernel_size=1), 
                     nn.ReLU()
                 )
-            elif k == 'normal':
-                self.heads[k] = nn.Sequential(
+                task_str += 'dep_'
+            elif task == 'normal':
+                self.heads[task] = nn.Sequential(
                     nn.Conv2d(filter[0], 3, kernel_size=1),
                     nn.Tanh()
                 )
+                task_str += 'nor_'
             else:
                 raise ValueError("Invalid Task")
+        self.name = "mtan" + task_str[:-1]
         init_weights(self)
 
     def forward(self, x):

@@ -59,7 +59,8 @@ class TaskNet(nn.Module):
 class DenseNet(nn.Module):
     def __init__(self, filter = [64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth']):
         super().__init__()
-        self.name = "densenet"
+        task_str = '_'
+        
         self.tasks = tasks
         self.classes = classes + 1
         self.sh_net = SharedNet(filter)
@@ -67,13 +68,16 @@ class DenseNet(nn.Module):
         for task in self.tasks:
             if task == 'depth':
                 self.tasks_net[task] = TaskNet(filter, classes=1)
+                task_str += 'dep_'
             elif task == 'segmentation':
                 self.tasks_net[task] = TaskNet(filter, classes=self.classes)
+                task_str += 'seg_'
             elif task == 'normal':
                 self.tasks_net[task] = TaskNet(filter, classes=3)
+                task_str += 'nor_'
             else:
                 raise ValueError("Invalid task")
-        
+        self.name = "densenet" + task_str[:-1]
         # self.seg_net = TaskNet(filter, self.classes)
         
         # if len(self.tasks) == 2:

@@ -5,7 +5,7 @@ from utils import init_weights
 class SplitNet(nn.Module):
     def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, mid_layers=4, tasks=['segmentation', 'depth']):
         super().__init__()
-        self.name = "splitnet"
+        task_str = '_'
         self.classes = classes + 1
         self.tasks = tasks
         # self.enc_net = Encoder(filter)
@@ -13,29 +13,33 @@ class SplitNet(nn.Module):
         # self.dec_net = Decoder([filter[-(i+1)] for i in range(len(filter))])
         self.enc_dec = EncDecNet(filter, mid_layers)
         self.heads = nn.ModuleDict()
-        for k in self.tasks:
-            if k == 'segmentation':
-                self.heads[k] = nn.Sequential(
+        for task in self.tasks:
+            if task == 'segmentation':
+                self.heads[task] = nn.Sequential(
                     ConvLayer(filter[0], filter[0]),
                     ConvLayer(filter[0], filter[0]),
                     nn.Conv2d(filter[0], self.classes, kernel_size=1)
                 )
-            elif k == 'depth':
-                self.heads[k] = self.depth_head = nn.Sequential(
+                task_str += 'seg_'
+            elif task == 'depth':
+                self.heads[task] = self.depth_head = nn.Sequential(
                     ConvLayer(filter[0], filter[0]),
                     ConvLayer(filter[0], filter[0]),
                     nn.Conv2d(filter[0], 1, kernel_size=1),
                     nn.Sigmoid()
                 )
-            elif k == 'normal':
-                self.heads[k] = self.normal_head = nn.Sequential(
+                task_str += 'dep_'
+            elif task == 'normal':
+                self.heads[task] = self.normal_head = nn.Sequential(
                     ConvLayer(filter[0], filter[0]),
                     ConvLayer(filter[0], filter[0]),
                     nn.Conv2d(filter[0], 3, kernel_size=1),
                     nn.Tanh()
                 )
+                task_str += 'nor_'
             else:
                 raise ValueError("Invalid Task")
+        self.name = "splitnet" + task_str[:-1]
         # self.seg_head = nn.Sequential(
         #     ConvLayer(filter[0], filter[0]),
         #     ConvLayer(filter[0], filter[0]),
