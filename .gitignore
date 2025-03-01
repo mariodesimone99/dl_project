@@ -3,7 +3,9 @@
 /__pycache__
 /dataset
 /models
+/models_old
 /runs
+/runs_old
 src/__pycache__/basic_modules.cpython-38.pyc
 src/__pycache__/cityscapes_dataset.cpython-38.pyc
 src/__pycache__/cross_stitchnet.cpython-38.pyc
@@ -16,3 +18,4 @@ src/__pycache__/splitnet.cpython-38.pyc
 src/__pycache__/stan.cpython-38.pyc
 src/__pycache__/trainer.cpython-38.pyc
 src/__pycache__/utils.cpython-38.pyc
+src/__pycache__/__init__.cpython-38.pyc

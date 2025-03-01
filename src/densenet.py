@@ -5,7 +5,7 @@ from basic_modules import ConvLayer, SharedNet
 from utils import init_weights
 
 class TaskNet(nn.Module):
-    def __init__(self, filter, classes):
+    def __init__(self, filter, classes, activation):
         super().__init__()
         self.classes = classes
         self.start_conv = nn.Sequential(
@@ -42,7 +42,8 @@ class TaskNet(nn.Module):
         self.head = nn.Sequential(
             ConvLayer(filter[0], filter[0]),
             ConvLayer(filter[0], filter[0]),
-            nn.Conv2d(filter[0], classes, kernel_size=1)
+            nn.Conv2d(filter[0], classes, kernel_size=1),
+            activation
         )
         
     def forward(self, x, out_dict):
@@ -57,7 +58,7 @@ class TaskNet(nn.Module):
         return logits
 
 class DenseNet(nn.Module):
-    def __init__(self, filter = [64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth']):
+    def __init__(self, filter = [64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth'], depth_activation='relu'):
         super().__init__()
         task_str = '_'
         
@@ -66,14 +67,17 @@ class DenseNet(nn.Module):
         self.sh_net = SharedNet(filter)
         self.tasks_net = nn.ModuleDict()
         for task in self.tasks:
-            if task == 'depth':
-                self.tasks_net[task] = TaskNet(filter, classes=1)
+            if task == 'depth' and depth_activation == 'sigmoid':
+                self.tasks_net[task] = TaskNet(filter, classes=1, activation=nn.Sigmoid())
+                task_str += 'dep_'
+            elif task == 'depth' and depth_activation == 'relu':
+                self.tasks_net[task] = TaskNet(filter, classes=1, activation=nn.ReLU())
                 task_str += 'dep_'
             elif task == 'segmentation':
-                self.tasks_net[task] = TaskNet(filter, classes=self.classes)
+                self.tasks_net[task] = TaskNet(filter, classes=self.classes, activation=nn.Identity())
                 task_str += 'seg_'
             elif task == 'normal':
-                self.tasks_net[task] = TaskNet(filter, classes=3)
+                self.tasks_net[task] = TaskNet(filter, classes=3, activation=nn.Tanh())
                 task_str += 'nor_'
             else:
                 raise ValueError("Invalid task")

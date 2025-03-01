@@ -4,7 +4,7 @@ from basic_modules import SharedNet
 from utils import init_weights
 
 class STAN(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, task=['segmentation'], activation='relu'):
+    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, task=['segmentation'], depth_activation='relu'):
         super().__init__()
         if task == ['depth']:
             self.name = "stan_depth"
@@ -18,12 +18,12 @@ class STAN(nn.Module):
         self.task = task
         self.sh_net = SharedNet(filter)
         self.attnet = AttNet(filter)
-        if self.task == ['depth'] and activation == 'relu':
+        if self.task == ['depth'] and depth_activation == 'relu':
             self.head = nn.Sequential(
             nn.Conv2d(filter[0], 1, kernel_size=1), 
             nn.ReLU()
         )
-        elif self.task == ['depth']:
+        elif self.task == ['depth'] and depth_activation == 'sigmoid':
             self.head = nn.Sequential(
             nn.Conv2d(filter[0], 1, kernel_size=1), 
             nn.Sigmoid()

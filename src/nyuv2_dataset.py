@@ -6,7 +6,7 @@ import os
 import glob
 
 class NYUv2Dataset(Dataset):
-    def __init__(self, root="./nyuv2_preprocessed", split="train"):
+    def __init__(self, root="../dataset/nyuv2_preprocessed", split="train"):
         self.root = root
         self.split = split
         self.images = glob.glob(os.path.join(root, split, "image", "*.npy"))

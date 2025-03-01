@@ -6,7 +6,7 @@ import os
 import glob
 
 class CityscapesDataset(Dataset):
-    def __init__(self, root="./cityscapes_preprocessed", split="train", labels=7):
+    def __init__(self, root="../dataset/cityscapes_preprocessed", split="train", labels=7):
         self.root = root
         self.split = split
         self.images = glob.glob(os.path.join(root, split, "image", "*.npy"))

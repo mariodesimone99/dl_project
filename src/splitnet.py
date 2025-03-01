@@ -3,7 +3,7 @@ from basic_modules import ConvLayer, EncDecNet
 from utils import init_weights
 
 class SplitNet(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, mid_layers=4, tasks=['segmentation', 'depth']):
+    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, mid_layers=4, tasks=['segmentation', 'depth'], depth_activation='relu'): 
         super().__init__()
         task_str = '_'
         self.classes = classes + 1
@@ -21,12 +21,20 @@ class SplitNet(nn.Module):
                     nn.Conv2d(filter[0], self.classes, kernel_size=1)
                 )
                 task_str += 'seg_'
-            elif task == 'depth':
+            elif task == 'depth' and depth_activation == 'sigmoid':
                 self.heads[task] = self.depth_head = nn.Sequential(
                     ConvLayer(filter[0], filter[0]),
                     ConvLayer(filter[0], filter[0]),
                     nn.Conv2d(filter[0], 1, kernel_size=1),
                     nn.Sigmoid()
+                )
+                task_str += 'dep_'
+            elif task == 'depth' and depth_activation == 'relu':
+                self.heads[task] = self.depth_head = nn.Sequential(
+                    ConvLayer(filter[0], filter[0]),
+                    ConvLayer(filter[0], filter[0]),
+                    nn.Conv2d(filter[0], 1, kernel_size=1),
+                    nn.ReLU()
                 )
                 task_str += 'dep_'
             elif task == 'normal':

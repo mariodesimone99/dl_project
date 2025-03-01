@@ -5,7 +5,7 @@ from utils import init_weights
 
 
 class CrossStitchNet(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth']):
+    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'):
         super().__init__()
         task_str = '_'
         self.classes = classes + 1
@@ -41,6 +41,8 @@ class CrossStitchNet(nn.Module):
                 task_str += 'dep_'
             elif task == 'normal':
                 task_str += 'nor_'
+            else:
+                raise ValueError('Invalid task')
         for i in range(len(filter)-1):
             for task in self.tasks:
                 self.nets[task].append(ConvLayer(filter[i], filter[i+1]))
@@ -55,12 +57,12 @@ class CrossStitchNet(nn.Module):
             self.nets[task].append(ConvLayer(filter[0], filter[0]))
             if task == 'segmentation':
                 self.nets[task].append(nn.Conv2d(filter[0], self.classes, kernel_size=1))
-            elif task == 'depth' and len(self.tasks) == 2:
+            elif task == 'depth' and depth_activation == 'sigmoid':
                 self.nets[task].append(nn.Sequential(
                     nn.Conv2d(filter[0], 1, kernel_size=1),
                     nn.Sigmoid())
                 )
-            elif task == 'depth' and len(self.tasks) == 3:
+            elif task == 'depth' and depth_activation == 'relu':
                 self.nets[task].append(nn.Sequential(
                     nn.Conv2d(filter[0], 1, kernel_size=1),
                     nn.ReLU())
