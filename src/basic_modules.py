@@ -37,14 +37,26 @@ class UpSampleBlock(nn.Module):
         return logits, up_layer
 
 class EncoderSH(nn.Module):
-    def __init__(self, filter):
+    def __init__(self, filter, mid_layers=0):
         super().__init__()
         self.enc_blocks = nn.ModuleList()
         self.down_blocks = nn.ModuleList()
-        self.enc_blocks.append(ConvLayer(3, filter[0]))
+        block = nn.Sequential(
+            ConvLayer(3, filter[0]),
+            *[ConvLayer(filter[0], filter[0]) for _ in range(mid_layers)]
+        )
+        self.enc_blocks.append(block)
+        # self.enc_blocks.append(ConvLayer(3, filter[0]))
         self.down_blocks.append(DownSampleBlock(filter[0], filter[0]))
         for i in range(len(filter) - 1):
-            self.enc_blocks.append(ConvLayer(filter[i], filter[i+1]))
+            # self.enc_blocks.append(ConvLayer(filter[i], filter[i+1]))
+            # self.down_blocks.append(DownSampleBlock(filter[i+1], filter[i+1]))
+            block = nn.Sequential(
+                ConvLayer(filter[i], filter[i+1]),
+                *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
+            )
+            self.enc_blocks.append(block)
+            # self.enc_blocks.append(ConvLayer(filter[i], filter[i+1]))
             self.down_blocks.append(DownSampleBlock(filter[i+1], filter[i+1]))
 
     def forward(self, x):
@@ -64,15 +76,25 @@ class EncoderSH(nn.Module):
         return logits, enc_layer, down_layer, down_indices, out
 
 class DecoderSH(nn.Module):
-    def __init__(self, filter):
+    def __init__(self, filter, mid_layers=0):
         super().__init__()
         self.up_blocks = nn.ModuleList()
         self.dec_blocks = nn.ModuleList()
         for i in range(len(filter) - 1):
             self.up_blocks.append(UpSampleBlock(filter[i], filter[i+1]))
-            self.dec_blocks.append(ConvLayer(filter[i+1], filter[i+1]))
+            # self.dec_blocks.append(ConvLayer(filter[i+1], filter[i+1]))
+            block = nn.Sequential(
+                ConvLayer(filter[i+1], filter[i+1]),
+                *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
+            )
+            self.dec_blocks.append(block)
         self.up_blocks.append(UpSampleBlock(filter[-1], filter[-1]))
-        self.dec_blocks.append(ConvLayer(filter[-1], filter[-1]))
+        block = nn.Sequential(
+            ConvLayer(filter[-1], filter[-1]),
+            *[ConvLayer(filter[-1], filter[-1]) for _ in range(mid_layers)]
+        )
+        self.dec_blocks.append(block)
+        # self.dec_blocks.append(ConvLayer(filter[-1], filter[-1]))
             
 
     def forward(self, x, down_indices):
@@ -87,10 +109,10 @@ class DecoderSH(nn.Module):
         return up_layer, dec_layer
     
 class SharedNet(nn.Module):
-    def __init__(self, filter):
+    def __init__(self, filter, mid_layers=0):
         super().__init__()
-        self.enc = EncoderSH(filter)
-        self.dec = DecoderSH([filter[-(i+1)] for i in range(len(filter))])  
+        self.enc = EncoderSH(filter, mid_layers)
+        self.dec = DecoderSH([filter[-(i+1)] for i in range(len(filter))], mid_layers)  
 
     def forward(self, x):
         logits, enc_layer, down_layer, down_indices, enc_out = self.enc(x)
@@ -101,23 +123,27 @@ class SharedNet(nn.Module):
         return enc_dict, dec_dict, down_indices, out_dict
     
 class Encoder(nn.Module):
-    def __init__(self, filter):
+    def __init__(self, filter, mid_layers=3):
         super().__init__()
         start_block = nn.Sequential(
-            ConvLayer(3, filter[0]), 
-            ConvLayer(filter[0], filter[0]), 
-            ConvLayer(filter[0], filter[0])
+            # ConvLayer(3, filter[0]), 
+            # ConvLayer(filter[0], filter[0]), 
+            # ConvLayer(filter[0], filter[0])
+            ConvLayer(3, filter[0]),
+            *[ConvLayer(filter[0], filter[0]) for _ in range(mid_layers-1)]
         )
         self.enc_blocks = nn.ModuleList([start_block])
         self.down_blocks = nn.ModuleList([DownSampleBlock(filter[0], filter[0])])
         for i in range(len(filter) - 1):
             block = nn.Sequential(
-                ConvLayer(filter[i], filter[i+1]), 
-                ConvLayer(filter[i+1], filter[i+1]), 
-                ConvLayer(filter[i+1], filter[i+1]),
+                # ConvLayer(filter[i], filter[i+1]), 
+                # ConvLayer(filter[i+1], filter[i+1]), 
+                # ConvLayer(filter[i+1], filter[i+1]),
+                ConvLayer(filter[i], filter[i+1]),
+                *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
             )
             self.enc_blocks.append(block)
-            self.down_blocks.append(DownSampleBlock(filter[i+1], filter[i+1]))
+            self.down_blocks.append(DownSampleBlock(filter[i], filter[i+1]))
 
     def forward(self, x):
         down_indices = []
@@ -129,23 +155,25 @@ class Encoder(nn.Module):
         return logits, down_indices
 
 class Decoder(nn.Module):
-    def __init__(self, filter):
+    def __init__(self, filter, mid_layers=3):
         super().__init__()
         self.up_blocks = nn.ModuleList()
         self.dec_blocks = nn.ModuleList()
         for i in range(len(filter) - 1):
+            self.up_blocks.append(UpSampleBlock(filter[i], filter[i+1]))
             block = nn.Sequential(
-                ConvLayer(filter[i+1], filter[i+1]), 
-                ConvLayer(filter[i+1], filter[i+1]),
-                ConvLayer(filter[i+1], filter[i+1])
+                # ConvLayer(filter[i+1], filter[i+1]), 
+                # ConvLayer(filter[i+1], filter[i+1]),
+                # ConvLayer(filter[i+1], filter[i+1])
+                *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
             )
             self.dec_blocks.append(block)
-            self.up_blocks.append(UpSampleBlock(filter[i], filter[i+1]))
         self.up_blocks.append(UpSampleBlock(filter[-1], filter[-1]))
         block = nn.Sequential(
-            ConvLayer(filter[-1], filter[-1]), 
-            ConvLayer(filter[-1], filter[-1]),
-            ConvLayer(filter[-1], filter[-1])
+            # ConvLayer(filter[-1], filter[-1]), 
+            # ConvLayer(filter[-1], filter[-1]),
+            # ConvLayer(filter[-1], filter[-1])
+            *[ConvLayer(filter[-1], filter[-1]) for _ in range(mid_layers)]
         )
         self.dec_blocks.append(block)
 
@@ -157,14 +185,14 @@ class Decoder(nn.Module):
         return logits
     
 class EncDecNet(nn.Module):
-    def __init__(self, filter, mid_layers):
+    def __init__(self, filter, mid_layers=3):
         super().__init__()
-        self.enc = Encoder(filter)
-        self.mid = nn.Sequential(*[ConvLayer(filter[-1], filter[-1]) for _ in range(mid_layers)])
-        self.dec = Decoder([filter[-(i+1)] for i in range(len(filter))])  
+        self.enc = Encoder(filter, mid_layers)
+        # self.mid = nn.Sequential(*[ConvLayer(filter[-1], filter[-1]) for _ in range(mid_layers)])
+        self.dec = Decoder([filter[-(i+1)] for i in range(len(filter))], mid_layers)  
 
     def forward(self, x):
         logits, down_indices = self.enc(x)
-        logits = self.mid(logits)
+        # logits = self.mid(logits)
         logits = self.dec(logits, down_indices)
         return logits

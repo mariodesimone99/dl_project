@@ -81,12 +81,12 @@ class AttNet(nn.Module):
         return logits
     
 class MTAN(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'):
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'):
         super().__init__()
         task_str = '_'
         self.classes = classes + 1 #background
         self.tasks = tasks
-        self.sh_net = SharedNet(filter)
+        self.sh_net = SharedNet(filter, mid_layers=mid_layers)
         self.attnet_task = nn.ModuleDict(zip(self.tasks, [AttNet(filter) for _ in range(len(self.tasks))]))
         # self.attnet_task = nn.ModuleList([AttNet(filter) for _ in range(len(self.tasks))])
         # to train with cross entropy loss
