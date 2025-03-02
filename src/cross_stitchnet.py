@@ -11,7 +11,7 @@ class CrossStitchNet(nn.Module):
         self.classes = classes + 1
         self.tasks = tasks
         # self.alphas = nn.ParameterList([nn.Parameter(torch.rand(len(self.tasks))) for _ in range(len(self.tasks))])
-        self.alphas = nn.ParameterDict({task: nn.ParameterDict({task : torch.rand(len(self.tasks)) for task in self.tasks}) for task in self.tasks})
+        self.alphas = nn.ParameterDict({task: nn.ParameterDict({task : torch.rand(1) for task in self.tasks}) for task in self.tasks})
 
         # self.nets = nn.ModuleList()
         # for _ in range(len(self.tasks)):
@@ -99,19 +99,21 @@ class CrossStitchNet(nn.Module):
     
     def _apply_cross_stitch(self, x):
         logits_dict = x
-        for logits_task in self.logits_dict.keys():
+        for logits_task in logits_dict.keys():
             for alphas_task in self.alphas.keys():
-                logits_dict[logits_task] += self.alphas[logits_task][alphas_task] * self.logits_dict[alphas_task]
+                logits_dict[logits_task] += self.alphas[logits_task][alphas_task] * logits_dict[alphas_task]
         return logits_dict
 
     def forward(self, x):
         logits_dict = {task: x for task in self.tasks}
-        idx_dict = {}
+        idx_dict = {task: [] for task in self.tasks}
         
         # All the nets are build with same number of modules
         for task in self.tasks:
             nmod = len(self.nets[task])
             break
+        
+        j = 1
 
         for i in range(nmod):
             apply_cross_stitch = False
@@ -122,16 +124,15 @@ class CrossStitchNet(nn.Module):
                     logits_dict[task] = logits_task
                     apply_cross_stitch = True
                 elif isinstance(self.nets[task][i], UpSampleBlock):
-                    logits_task, _ = self.nets[task][i](logits_dict[task], idx_dict[task][-i-1])
+                    logits_task, _ = self.nets[task][i](logits_dict[task], idx_dict[task][-j])
                     logits_dict[task] = logits_task
+                    j = j + 1 if task == self.tasks[-1] else j
                     apply_cross_stitch = True
                 else:
                     logits_task = self.nets[task][i](logits_dict[task])
                     logits_dict[task] = logits_task
                     apply_cross_stitch = False
-            if apply_cross_stitch:
-                logits_dict = self._apply_cross_stitch(logits_dict)
-                apply_cross_stitch = False
+            logits_dict = self._apply_cross_stitch(logits_dict) if apply_cross_stitch else logits_dict
         return logits_dict
         # logits_seg = x 
         # logits_depth = x
