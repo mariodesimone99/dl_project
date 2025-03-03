@@ -4,19 +4,21 @@ from basic_modules import SharedNet
 from utils import init_weights
 
 class STAN(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, task=['segmentation'], depth_activation='relu'):
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=0, classes=7, task=['segmentation'], depth_activation='relu'):
         super().__init__()
         if task == ['depth']:
-            self.name = "stan_depth"
+            self.name = "stan_dep"
             self.classes = 1
         elif task == ['segmentation']:
             self.name = "stan_seg"
             self.classes = classes + 1 # background
-        else: # normals estimation
+        elif task == ['normal']: # normals estimation
             self.classes = 3
-            self.name = "stan_norm"
+            self.name = "stan_nor"
+        else:
+            raise ValueError("Invalid task")
         self.task = task
-        self.sh_net = SharedNet(filter)
+        self.sh_net = SharedNet(filter, mid_layers)
         self.attnet = AttNet(filter)
         if self.task == ['depth'] and depth_activation == 'relu':
             self.head = nn.Sequential(

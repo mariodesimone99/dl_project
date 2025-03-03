@@ -1,4 +1,0 @@
-model_name : "splitnet"
-filter : [64, 128, 256, 512, 512]
-classes : 7
-mid_layers : 4

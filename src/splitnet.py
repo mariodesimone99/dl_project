@@ -3,7 +3,7 @@ from basic_modules import ConvLayer, EncDecNet
 from utils import init_weights
 
 class SplitNet(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=2, classes=7, tasks=['segmentation', 'depth'], depth_activation='relu'): 
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=2, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'): 
         super().__init__()
         task_str = '_'
         self.classes = classes + 1

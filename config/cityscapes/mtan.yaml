@@ -1,0 +1,5 @@
+model_name : "mtan"
+tasks: ["segmentation", "depth"]
+filter : [64, 128, 256, 512, 512]
+mid_layers : 0
+depth_activation : "relu"

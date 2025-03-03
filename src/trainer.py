@@ -24,10 +24,11 @@ from torch.utils.tensorboard import SummaryWriter
 #TODO: make function to plot both train and val losses and stats
 
 class Trainer:
-    def __init__(self, model, opt):
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    def __init__(self, model, opt, dataset_name, device):
+        self.device = device
         self.model = model.to(self.device)
         self.opt = opt
+        self.dataset_name = dataset_name
         self.loss_fn = []
         # losses_keys = []
         stats_keys = []
@@ -72,7 +73,7 @@ class Trainer:
 
         # self.track_losses = {k: [] for k in losses_keys}
         self.stats = {k: v for k, v in zip(stats_keys, stats_values)}
-        self.writer = SummaryWriter(f'./runs/{self.model.name}')
+        self.writer = SummaryWriter(f'./runs/{dataset_name}/{self.model.name}')
         self.lambdas = {k: 1 for k in self.model.tasks}
         #self.lambdas = np.array([1, 1]) if len(self.model.tasks) == 2 else np.array([1, 1, 1])
         

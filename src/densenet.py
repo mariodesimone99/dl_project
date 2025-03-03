@@ -58,13 +58,13 @@ class TaskNet(nn.Module):
         return logits
 
 class DenseNet(nn.Module):
-    def __init__(self, filter = [64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'):
+    def __init__(self, filter = [64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'):
         super().__init__()
         task_str = '_'
         
         self.tasks = tasks
         self.classes = classes + 1
-        self.sh_net = SharedNet(filter)
+        self.sh_net = SharedNet(filter, mid_layers)
         self.tasks_net = nn.ModuleDict()
         for task in self.tasks:
             if task == 'depth' and depth_activation == 'sigmoid':

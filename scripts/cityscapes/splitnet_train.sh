@@ -1,0 +1,1 @@
+python ./src/train.py ./config/cityscapes/splitnet.yaml ./config/cityscapes/dataset.yaml

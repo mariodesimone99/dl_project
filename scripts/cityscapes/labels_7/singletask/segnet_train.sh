@@ -1,1 +1,0 @@
-python ./src/train.py ./config/singletask/segnet.yaml

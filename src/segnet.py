@@ -3,7 +3,7 @@ from basic_modules import ConvLayer, EncDecNet
 from utils import init_weights
 
 class SegNet(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, mid_layers=4):
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=4, classes=7):
         super().__init__()
         self.name = "segnet"
         self.task = ['segmentation']
