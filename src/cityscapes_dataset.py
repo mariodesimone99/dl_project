@@ -9,6 +9,7 @@ class CityscapesDataset(Dataset):
     def __init__(self, root="../dataset/cityscapes_preprocessed", split="train", labels=7):
         self.root = root
         self.split = split
+        self.classes = labels+1
         self.images = glob.glob(os.path.join(root, split, "image", "*.npy"))
         self.labels = glob.glob(os.path.join(root, split, f"label_{labels}", "*.npy"))
         self.depth = glob.glob(os.path.join(root, split, "depth", "*.npy"))
@@ -26,3 +27,6 @@ class CityscapesDataset(Dataset):
         out_dict = {'segmentation': label, 'depth': depth}
         return image, out_dict
         # return image, label, depth
+
+    def get_classes(self):
+        return self.classes

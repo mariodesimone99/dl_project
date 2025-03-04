@@ -17,6 +17,7 @@ class NYUv2Dataset(Dataset):
         self.labels.sort()
         self.depth.sort()
         self.normals.sort()
+        self.classes = 13
 
     def __len__(self):
         return len(self.images)
@@ -29,3 +30,6 @@ class NYUv2Dataset(Dataset):
         # return image, label, depth, normal
         out_dict = {'segmentation': label, 'depth': depth, 'normal': normal}
         return image, out_dict
+    
+    def get_classes(self):
+        return self.classes

@@ -10,18 +10,7 @@ import os
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-#TODO: Uniform the loss computation using vector parameters and returning vector losses
-#TODO: Make stats losses and plot dictionaries class variables, handling both single, 2 and 3 tasks
-#TODO: make model.tasks vector in each model class
-#TODO: make multitask models return a dictionary with the outputs
-#TODO: unifrom notation of depth and dis across the code
-#TODO the loss computation should have a vector form to avoid lots of if statements
-#TODO: modify the dataset class to return a dictionary of the inputs
-
-#TODO: remove sigmoid from everywhere and add it to the output of the model
-#TODO: in multitask training implement the loss computation as vector to avoid lots of if statements
-#TODO: check if the computation of the lambdas is correct for the 3 tasks case 
-#TODO: make function to plot both train and val losses and stats
+#TODO: check if the loss should take into account all the pixels or only the ones that are not -1 (see paper)
 
 class Trainer:
     def __init__(self, model, opt, dataset_name, device):
@@ -29,7 +18,7 @@ class Trainer:
         self.model = model.to(self.device)
         self.opt = opt
         self.dataset_name = dataset_name
-        self.loss_fn = []
+        self.loss_fn = {}
         # losses_keys = []
         stats_keys = []
         stats_values = []
@@ -41,28 +30,30 @@ class Trainer:
         # for t in model.tasks:
             # losses_keys.append(f"new_{t}")
             # losses_keys.append(f"old_{t}")
-
-        if 'segmentation' in model.tasks:
-            stats_keys.append("miou")
-            stats_keys.append("pix_acc")
-            stats_values.append(MeanIoU(num_classes=self.model.classes, per_class=False, include_background=False, input_format='index').to(self.device))
-            stats_values.append(MulticlassAccuracy(num_classes=self.model.classes, multidim_average='global', average='micro').to(self.device))
-
-            self.loss_fn.append(nn.CrossEntropyLoss(ignore_index=-1))
-        if 'depth' in model.tasks:
-            stats_keys.append("mae")
-            stats_keys.append("mre")
-            stats_values.append(MeanAbsoluteError().to(self.device))
-            stats_values.append(MeanAbsoluteRelativeError().to(self.device))
-
-            self.loss_fn.append(nn.L1Loss())
-        if 'normal' in model.tasks:
-            stats_keys.append("ad")
-            stats_values.append(AngleDistance().to(self.device))
-
-            self.loss_fn.append(DotProductLoss())
-        else:
-            raise ValueError("Invalid task")
+        for t in model.tasks:
+            # if 'segmentation' in model.tasks:
+            if t == 'segmentation':
+                stats_keys.append("miou")
+                stats_keys.append("pix_acc")
+                stats_values.append(MeanIoU(num_classes=self.model.classes, per_class=False, include_background=False, input_format='index').to(self.device))
+                stats_values.append(MulticlassAccuracy(num_classes=self.model.classes, multidim_average='global', average='micro').to(self.device))
+                self.loss_fn[t] = nn.CrossEntropyLoss(ignore_index=-1)
+                # self.loss_fn.append(nn.CrossEntropyLoss(ignore_index=-1))
+            elif t =='depth':
+                stats_keys.append("mae")
+                stats_keys.append("mre")
+                stats_values.append(MeanAbsoluteError().to(self.device))
+                stats_values.append(MeanAbsoluteRelativeError().to(self.device))
+                self.loss_fn[t] = nn.L1Loss()
+                # self.loss_fn.append(nn.L1Loss())
+            # if 'normal' in model.tasks:
+            elif t == 'normal':
+                stats_keys.append("ad")
+                stats_values.append(AngleDistance().to(self.device))
+                self.loss_fn[t] = DotProductLoss()
+                # self.loss_fn.append(DotProductLoss())
+            else:
+                raise ValueError("Invalid task")
         self.track_losses_old = {t: [] for t in model.tasks}
         self.track_losses_new = {t: [] for t in model.tasks}
         self.plt_loss_train = {k: [] for k in self.model.tasks + ['total']}
@@ -73,7 +64,7 @@ class Trainer:
 
         # self.track_losses = {k: [] for k in losses_keys}
         self.stats = {k: v for k, v in zip(stats_keys, stats_values)}
-        self.writer = SummaryWriter(f'./runs/{dataset_name}/{self.model.name}')
+        self.writer = SummaryWriter(f'../runs/{dataset_name}/{self.model.name}')
         self.lambdas = {k: 1 for k in self.model.tasks}
         #self.lambdas = np.array([1, 1]) if len(self.model.tasks) == 2 else np.array([1, 1, 1])
         
@@ -121,18 +112,19 @@ class Trainer:
         # loss_seg = loss_fn_seg(output_seg, y_seg)
         # loss_depth = loss_fn_depth(output_depth.squeeze(1), y_dis)
 
-        if 'segmentation' in y_preds.keys():
-            preds_seg = torch.argmax(y_preds['segmentation'], dim=1)
-            preds_seg_flat = preds_seg.view(-1)
-            y_seg_flat = y_dict['segmentation'].view(-1)
-            pos_idx = torch.where(y_seg_flat != -1)
-            preds_seg_flat = preds_seg_flat[pos_idx[0]].unsqueeze(0)
-            y_seg_flat = y_seg_flat[pos_idx[0]].unsqueeze(0)
-            update_stats(stats, preds_seg_flat, y_seg_flat, ['miou', 'pix_acc'])
-        if 'depth' in y_preds.keys():
-            update_stats(stats, y_preds['depth'], y_dict['depth'], ['mae', 'mre'])
-        if 'normal' in y_preds.keys():
-            update_stats(stats, y_preds['normal'], y_dict['normal'], ['ad'])
+        for t in y_preds.keys():
+            if t == 'segmentation':
+                preds_seg = torch.argmax(y_preds[t], dim=1)
+                preds_seg_flat = preds_seg.view(-1)
+                y_seg_flat = y_dict[t].view(-1)
+                pos_idx = torch.where(y_seg_flat != -1)
+                preds_seg_flat = preds_seg_flat[pos_idx[0]].unsqueeze(0)
+                y_seg_flat = y_seg_flat[pos_idx[0]].unsqueeze(0)
+                update_stats(stats, preds_seg_flat, y_seg_flat, ['miou', 'pix_acc'])
+            elif t == 'depth':
+                update_stats(stats, y_preds[t], y_dict[t], ['mae', 'mre'])
+            else: # t == 'normal'
+                update_stats(stats, y_preds[t], y_dict[t], ['ad'])
         #update_stats(stats_seg, preds_seg_flat, y_seg_flat)
         #update_stats(stats_depth, output_depth.squeeze(1), y_dis)
         return losses
@@ -271,8 +263,8 @@ class Trainer:
             plt_stats_val = {k: [] for k in self.plt_stats.keys()}
             stats_val = self.stats.copy()
             
-        if save and not os.path.exists(f"./models/{self.model.name}"): 
-            os.makedirs(f"./models/{self.model.name}")
+        if save and not os.path.exists(f"../models/{self.dataset_name}/{self.model.name}"): 
+            os.makedirs(f"../models/{self.dataset_name}/{self.model.name}")
         old_losses = True
         count_losses = 0
         for epoch in range(epochs):
@@ -378,7 +370,7 @@ class Trainer:
                 for k in self.stats:
                     print(f"{k}: {self.stats[k].compute().cpu()}")
                 print(f"Gradient Norm: {grad_norm}\n") if grad else print("\n")
-                save_model_opt(self.model, self.opt, epoch) if save else None
+                save_model_opt(self.model, self.opt, self.dataset_name, epoch) if save else None
             # self.writer.add_scalar('Train/Loss/Total', total_loss, epoch)
             # self.writer.add_scalar('Train/Loss/Segmentation', total_loss_seg, epoch)
             # self.writer.add_scalar('Train/Loss/Depth', total_loss_depth, epoch)
@@ -411,7 +403,7 @@ class Trainer:
         #     ax[i//ncols][i%ncols].set_title(k)
         # if save:
         #     plt.savefig(f"./models/{self.model.name}/{self.model.name}_train{epochs}.png")
-        torch.save(self.model.state_dict(), f"./models/{self.model.name}/{self.model.name}_train{epochs}.pth") if save else None
+        torch.save(self.model.state_dict(), f"../models/{self.dataset_name}/{self.model.name}/{self.model.name}_train{epochs}.pth") if save else None
         
         if val_dl != None:
             plt_val_dict = {**plt_losses_val, **plt_stats_val}
