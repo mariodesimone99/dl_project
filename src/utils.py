@@ -69,23 +69,41 @@ class AngleDistance(Metric):
     def compute(self):
         return {'mean':self.angle_mean/self.num_obs, 'median':self.angle_median/self.num_obs, 'tolls':self.angle_tolls}
     
-class DotProductLoss(nn.Module):
-    def __init__(self, reduction='mean'):
+class L1Loss(nn.Module):
+    def __init__(self):
         super().__init__()
-        self.reduction = reduction
 
     def forward(self, x, y):
+        # Adapt shape
+        x = x.squeeze(1)
+        # Find the invalid pixels (depth 0)
+        pos_mask = (y != 0).to(torch.float).to(x.device)
+        return torch.sum(torch.abs(x-y)*pos_mask)/torch.sum(pos_mask)
+    
+class DotProductLoss(nn.Module):
+    # def __init__(self, reduction='mean'):
+    def __init__(self):
+        super().__init__()
+        # self.reduction = reduction
+
+    #TODO: check correctness
+    def forward(self, x, y):
+        # Normalize pixels
         x_norm = F.normalize(x, p=2, dim=1)
-        B, C, H, W = x.shape
-        x_flat = x_norm.view(B, 1, C*H*W)
-        y_flat = y.view(B, C*H*W, 1)
-        loss = -(1/H*W)*torch.matmul(x_flat, y_flat).squeeze(1)
-        if self.reduction == 'mean':
-            return torch.mean(loss)
-        elif self.reduction == 'sum':
-            return torch.sum(loss)
-        else:
-            return loss
+        # Find the invalid pixels (points orthogonal to every axes)
+        pos_mask = (torch.sum(y, dim=1, keepdim=True) != 0).to(torch.float).to(x.device)
+        # 1 - dot product to make it a loss with minimum 0 because both 
+        return 1-torch.sum(x_norm*y*pos_mask) / torch.sum(pos_mask)
+        # B, C, H, W = x.shape
+        # x_flat = x_norm.view(B, 1, C*H*W)
+        # y_flat = y.view(B, C*H*W, 1)
+        # loss = -(1/H*W)*torch.matmul(x_flat, y_flat).squeeze(1)
+        # if self.reduction == 'mean':
+        #     return torch.mean(loss)
+        # elif self.reduction == 'sum':
+        #     return torch.sum(loss)
+        # else:
+        #     return loss
 
 def add_plt(plt, data):
     for k in data.keys():

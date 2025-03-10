@@ -101,7 +101,7 @@ class CrossStitchNet(nn.Module):
         logits_dict = x
         for logits_task in logits_dict.keys():
             for alphas_task in self.alphas.keys():
-                logits_dict[logits_task] += self.alphas[logits_task][alphas_task] * logits_dict[alphas_task]
+                logits_dict[logits_task] = logits_dict[logits_task] + self.alphas[logits_task][alphas_task] * logits_dict[alphas_task]
         return logits_dict
 
     def forward(self, x):
