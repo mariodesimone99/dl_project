@@ -1,4 +1,7 @@
+import torch
 import torch.nn as nn
+from utils import mask_invalid_pixels
+import torch.nn.functional as F
 
 class ConvLayer(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -196,3 +199,50 @@ class EncDecNet(nn.Module):
         # logits = self.mid(logits)
         logits = self.dec(logits, down_indices)
         return logits
+
+class Normalize(nn.Module):
+    def __init__(self, p=2, dim=1):
+        super().__init__()
+        self.p = p
+        self.dim = dim
+
+    def forward(self, x):
+        return F.normalize(x, p=self.p, dim=self.dim)
+    
+class L1Loss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x, y):
+        # Adapt shape
+        # x = x.squeeze(1)
+        # Find the invalid pixels (depth 0)
+        # mask = (y != 0).to(torch.float).to(x.device)
+        mask = mask_invalid_pixels(y).to(torch.float).to(x.device)
+        return torch.sum(torch.abs(x-y)*mask)/torch.sum(mask)
+    
+class DotProductLoss(nn.Module):
+    # def __init__(self, reduction='mean'):
+    def __init__(self):
+        super().__init__()
+        # self.reduction = reduction
+
+    #TODO: check correctness
+    def forward(self, x, y):
+        # Normalize pixels
+        #x_norm = F.normalize(x, p=2, dim=1)
+        # Find the invalid pixels (points orthogonal to every axes)
+        # mask = (torch.sum(y, dim=1, keepdim=True) != 0).to(torch.float).to(x.device)
+        mask = mask_invalid_pixels(y).to(torch.float)
+        # 1 - dot product to make it a loss with minimum 0 because both 
+        return 1-torch.sum(x*y*mask) / torch.sum(mask)
+        # B, C, H, W = x.shape
+        # x_flat = x_norm.view(B, 1, C*H*W)
+        # y_flat = y.view(B, C*H*W, 1)
+        # loss = -(1/H*W)*torch.matmul(x_flat, y_flat).squeeze(1)
+        # if self.reduction == 'mean':
+        #     return torch.mean(loss)
+        # elif self.reduction == 'sum':
+        #     return torch.sum(loss)
+        # else:
+        #     return loss

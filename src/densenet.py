@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from basic_modules import ConvLayer, SharedNet
+from basic_modules import ConvLayer, SharedNet, Normalize
 from utils import init_weights
 
 class TaskNet(nn.Module):
@@ -77,7 +77,7 @@ class DenseNet(nn.Module):
                 self.tasks_net[task] = TaskNet(filter, classes=self.classes, activation=nn.Identity())
                 task_str += 'seg_'
             elif task == 'normal':
-                self.tasks_net[task] = TaskNet(filter, classes=3, activation=nn.Tanh())
+                self.tasks_net[task] = TaskNet(filter, classes=3, activation=nn.Sequential(nn.Tanh(), Normalize()))
                 task_str += 'nor_'
             else:
                 raise ValueError("Invalid task")

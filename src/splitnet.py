@@ -1,5 +1,5 @@
 import torch.nn as nn
-from basic_modules import ConvLayer, EncDecNet
+from basic_modules import ConvLayer, EncDecNet, Normalize
 from utils import init_weights
 
 class SplitNet(nn.Module):
@@ -42,7 +42,8 @@ class SplitNet(nn.Module):
                     ConvLayer(filter[0], filter[0]),
                     ConvLayer(filter[0], filter[0]),
                     nn.Conv2d(filter[0], 3, kernel_size=1),
-                    nn.Tanh()
+                    nn.Tanh(), 
+                    Normalize()
                 )
                 task_str += 'nor_'
             else:

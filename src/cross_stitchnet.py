@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from basic_modules import ConvLayer, DownSampleBlock, UpSampleBlock
+from basic_modules import ConvLayer, DownSampleBlock, UpSampleBlock, Normalize
 from utils import init_weights
 
 
@@ -70,7 +70,8 @@ class CrossStitchNet(nn.Module):
             elif task == 'normal':
                 self.nets[task].append(nn.Sequential(
                     nn.Conv2d(filter[0], 3, kernel_size=1),
-                    nn.Tanh())
+                    nn.Tanh(), 
+                    Normalize())
                 )
 
         # heads = nn.ModuleList()

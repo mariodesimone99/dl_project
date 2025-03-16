@@ -21,101 +21,97 @@ def count_params(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def mean_absolute_relative_error(preds, target):
-    sum_abs_target = torch.sum(torch.abs(target))
-    return torch.sum(torch.abs(preds - target))/sum_abs_target
+    # mask = mask_invalid_pixels(target)
+    # preds_flat = preds.masked_select(mask)
+    # target_flat = target.masked_select(mask)
+    #return torch.mean(torch.abs(preds_flat - target_flat)/target_flat)
+    #abs_diff = torch.abs(preds - target)
+    return torch.sum(torch.abs(preds - target)/target), target.shape[0]
+    #return torch.sum(abs_diff), torch.sum(abs_diff/target), target.shape[0]
 
 class MeanAbsoluteRelativeError(Metric):
     def __init__(self):
         super().__init__()
+        #self.add_state("sum_abs_err", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("sum_rel_err", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("num_obs", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        self.sum_rel_err += mean_absolute_relative_error(preds, target)
-        self.num_obs += target.shape[0]
+        rel, obs = mean_absolute_relative_error(preds, target)
+        #self.sum_abs_err += abs
+        self.sum_rel_err += rel
+        self.num_obs += obs
 
     def compute(self):
         return self.sum_rel_err / self.num_obs
+        #return self.sum_abs_err / self.num_obs
     
-# Check if we have to module the difference by pi or not
 def angle_distance(preds, target):
-    preds_angle = torch.arccos(preds)*180/torch.pi
-    target_angle = torch.arccos(target)*180/torch.pi
-    # print(f"Preds: {preds_angle}")
-    # print(f"Targets: {target_angle}")
-    angle_diff = torch.abs(preds_angle - target_angle)
+    mask = mask_invalid_pixels(target)
+    # preds_angle = torch.acos(preds)*180/torch.pi
+    # target_angle = torch.acos(target)*180/torch.pi
+    # # print(f"Preds: {preds_angle}")
+    # # print(f"Targets: {target_angle}")
+    # angle_diff = torch.abs(preds_angle - target_angle)
     # print(f"Angle diff: {angle_diff}")
     # print(f"Mean {torch.mean(angle_diff)}")
     # print(f"Median {torch.median(angle_diff)}")
     # print(f"Tolls {[torch.sum(angle_diff <= toll)/angle_diff.numel() for toll in [11.25, 22.5, 30]]}")
-    return angle_diff
+    dot_prod = torch.sum(preds*target, dim=1)
+    angle_diff = torch.acos(torch.clamp(dot_prod.masked_select(mask), -1, 1)).rad2deg()
+    return angle_diff, angle_diff.shape[0]
 
 class AngleDistance(Metric):
     def __init__(self, tolls=[11.25, 22.5, 30]):
         super().__init__()
         self.tolls = tolls
         self.add_state("angle_mean", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.add_state("angle_median", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        #self.add_state("angle_median", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("angle_median", default=[], dist_reduce_fx="sum")
         self.add_state("angle_tolls", default=torch.tensor([0.0 for _ in range(len(tolls))]), dist_reduce_fx="sum")
         self.add_state("num_obs", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
-        angle_diff = angle_distance(preds, target)
-        self.angle_mean += torch.mean(angle_diff)
-        self.angle_median += torch.median(angle_diff)
-        self.angle_tolls += torch.tensor([torch.sum(angle_diff <= toll)/angle_diff.numel() for toll in self.tolls]).to(self.angle_tolls.device)
-        self.num_obs += target.shape[0]
+        angle_diff, obs = angle_distance(preds, target)
+        #self.angle_mean += torch.mean(angle_diff)
+        self.angle_mean += torch.sum(angle_diff)
+        #self.angle_median += torch.median(angle_diff)
+        self.angle_median.append(torch.median(angle_diff))
+        #self.angle_tolls += torch.tensor([torch.sum(angle_diff <= toll)/angle_diff.numel() for toll in self.tolls]).to(self.angle_tolls.device)
+        self.angle_tolls += torch.tensor([torch.sum(angle_diff <= toll) for toll in self.tolls]).to(self.angle_tolls.device)
+        self.num_obs += obs
 
     def compute(self):
-        return {'mean':self.angle_mean/self.num_obs, 'median':self.angle_median/self.num_obs, 'tolls':self.angle_tolls}
-    
-class L1Loss(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x, y):
-        # Adapt shape
-        x = x.squeeze(1)
-        # Find the invalid pixels (depth 0)
-        pos_mask = (y != 0).to(torch.float).to(x.device)
-        return torch.sum(torch.abs(x-y)*pos_mask)/torch.sum(pos_mask)
-    
-class DotProductLoss(nn.Module):
-    # def __init__(self, reduction='mean'):
-    def __init__(self):
-        super().__init__()
-        # self.reduction = reduction
-
-    #TODO: check correctness
-    def forward(self, x, y):
-        # Normalize pixels
-        x_norm = F.normalize(x, p=2, dim=1)
-        # Find the invalid pixels (points orthogonal to every axes)
-        pos_mask = (torch.sum(y, dim=1, keepdim=True) != 0).to(torch.float).to(x.device)
-        # 1 - dot product to make it a loss with minimum 0 because both 
-        return 1-torch.sum(x_norm*y*pos_mask) / torch.sum(pos_mask)
-        # B, C, H, W = x.shape
-        # x_flat = x_norm.view(B, 1, C*H*W)
-        # y_flat = y.view(B, C*H*W, 1)
-        # loss = -(1/H*W)*torch.matmul(x_flat, y_flat).squeeze(1)
-        # if self.reduction == 'mean':
-        #     return torch.mean(loss)
-        # elif self.reduction == 'sum':
-        #     return torch.sum(loss)
-        # else:
-        #     return loss
+        #return {'mean':self.angle_mean/self.num_obs, 'median':self.angle_median/self.num_obs, 'tolls':self.angle_tolls}
+        return {'mean':self.angle_mean/self.num_obs, 'median':torch.mean(torch.tensor(self.angle_median)), 'tolls':self.angle_tolls}
 
 def add_plt(plt, data):
     for k in data.keys():
         plt[k].append(data[k].compute().cpu()) if isinstance(data[k], Metric) else plt[k].append(data[k])
 
 def plot_dict(plt_dict, path=None):
-    nrows, ncols = len(plt_dict)//2, 2
-    _, ax = plt.subplots(nrows, ncols)
-    for i, k in enumerate(plt_dict.keys()):
-        ax[i//ncols][i%ncols].plot(plt_dict[k])
-        ax[i//ncols][i%ncols].set_title(k)
-    plt.savefig(path) if path else None
+    # nrows, ncols = len(plt_dict)//2, 2
+    # _, ax = plt.subplots(nrows, ncols)
+    # for i, k in enumerate(plt_dict.keys()):
+    #     ax[i//ncols][i%ncols].plot(plt_dict[k])
+    #     ax[i//ncols][i%ncols].set_title(k)
+    # plt.savefig(path) if path else None
+    for k in plt_dict.keys():
+        nplots = len(plt_dict[k])
+        ncols = 2
+        nrows = nplots//2 if nplots %2 == 0 else nplots//2 + 1
+        fig, ax = plt.subplots(nrows, ncols, figsize=(15, 15)) if nplots > 2 else plt.subplots(1, 2, figsize=(10, 10))
+        fig.suptitle(k)
+        for i, t in enumerate(plt_dict[k].keys()):
+            if t == 'lambdas':
+                for l in plt_dict[k][t].keys():
+                    ax[i//ncols][i%ncols].plot(plt_dict[k][t][l], label=l)
+                ax[i//ncols][i%ncols].legend(loc="upper left")
+                #ax[i//ncols][i%ncols].set_title(t)
+            else:
+                ax[i//ncols][i%ncols].plot(plt_dict[k][t])
+            ax[i//ncols][i%ncols].set_title(t)
+        plt.savefig(path + k + '.png') if path else None
 
 # def compute_lambdas(losses_seg, losses_depth, T, K):
 #     w_seg = np.mean(losses_seg['new']) / np.mean(losses_seg['old'])
@@ -126,7 +122,7 @@ def plot_dict(plt_dict, path=None):
 def compute_lambdas(losses_new, losses_old, K, T=2):
     w = []
     for k in losses_new.keys():
-        w_tmp = np.mean(losses_new[k]) / np.mean(losses_old[k])
+        w_tmp = losses_new[k] / losses_old[k]
         w.append(w_tmp/T)
     w = F.softmax(torch.tensor(w), dim=0)*K
     return dict(zip(losses_new.keys(), w))
@@ -141,17 +137,18 @@ def update_losses(losses_new, losses_old):
         losses_old[k] = losses_new[k]
         losses_new[k] = []
 
-def update_stats(stats, x, y, stats_keys):
-    for k in stats_keys:
-        stats[k].update(x, y)
+def update_stats(stats, x, y):
+    for t in stats.keys():
+        stats[t].update(x, y)
 
 def reset_stats(stats):
     for k in stats.keys():
-        stats[k].reset()
+        for t in stats[k].keys():
+            stats[k][t].reset()
 
-def save_model_opt(model, opt, dataset_name, epochs):
-    torch.save(model.state_dict(), f"../models/{dataset_name}/{model.name}/{model.name}_train{epochs}.pth")
-    torch.save(opt.state_dict(), f"../models/{dataset_name}/{model.name}/{model.name}_opt_train{epochs}.pth")
+# def save_model_opt(model, opt, path):
+#     torch.save(model.state_dict(), path)
+#     torch.save(opt.state_dict(), path)
 
 def ignore_index_seg(preds_seg, y_seg):
     preds_seg_flat = preds_seg.view(-1)
@@ -160,6 +157,10 @@ def ignore_index_seg(preds_seg, y_seg):
     preds_seg_flat = preds_seg_flat[pos_idx[0]].unsqueeze(0)
     y_seg_flat = y_seg_flat[pos_idx[0]].unsqueeze(0)
     return preds_seg_flat, y_seg_flat
+
+def mask_invalid_pixels(y):
+    mask = (y.sum(dim=1, keepdim=True) != 0).to(y.device) if len(y.shape) == 4 else (y != 0).to(y.device)
+    return mask
 
 # def save_results(model_name, dataset_name):
 #     if not os.path.exists(f"../models/{dataset_name}/{model_name}"): 

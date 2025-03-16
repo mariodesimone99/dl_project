@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from utils import init_weights
-from basic_modules import ConvLayer, SharedNet
+from basic_modules import ConvLayer, SharedNet, Normalize
 
 class AttEncBlock(nn.Module):
     def __init__(self, in_channels, mid_channels, out_channels):
@@ -126,7 +126,8 @@ class MTAN(nn.Module):
             elif task == 'normal':
                 self.heads[task] = nn.Sequential(
                     nn.Conv2d(filter[0], 3, kernel_size=1),
-                    nn.Tanh()
+                    nn.Tanh(),
+                    Normalize()
                 )
                 task_str += 'nor_'
             else:

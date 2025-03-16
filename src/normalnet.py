@@ -1,5 +1,6 @@
 import torch.nn as nn
 from segnet import SegNet
+from basic_modules import Normalize
 
 class NormalNet(SegNet):
     def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=4):
@@ -7,7 +8,10 @@ class NormalNet(SegNet):
         self.name = "normalnet"
         self.task = ['normal']
         self.classes = 3
-        self.activation = nn.Tanh()
+        self.activation = nn.Sequential(
+            nn.Tanh(),
+            Normalize()
+        )
 
     def forward(self, x):
         logits = super().forward(x)

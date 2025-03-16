@@ -1,6 +1,6 @@
 import torch.nn as nn
 from mtan import AttNet
-from basic_modules import SharedNet
+from basic_modules import SharedNet, Normalize
 from utils import init_weights
 
 class STAN(nn.Module):
@@ -35,7 +35,8 @@ class STAN(nn.Module):
         elif self.task == ['normal']: # normals estimation
             self.head = nn.Sequential(
             nn.Conv2d(filter[0], 3, kernel_size=1),
-            nn.Tanh()
+            nn.Tanh(),
+            Normalize()
         )
         else:
             raise ValueError("Invalid task")
