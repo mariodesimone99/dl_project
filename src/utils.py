@@ -1,14 +1,10 @@
 import torch
 import torch.nn as nn
 from torchmetrics import Metric
-from torchmetrics.functional.segmentation import mean_iou
-from torchmetrics.functional.classification import multiclass_accuracy
-from torchmetrics.functional.regression import mean_absolute_error
 import torch.nn.functional as F
-import numpy as np
 import matplotlib.pyplot as plt
-import os
 
+#TODO: fix the application if the last layer has not a relu
 def init_weights(model):
     for m in model.modules():
         if isinstance(m, nn.Conv2d):
@@ -21,30 +17,21 @@ def count_params(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def mean_absolute_relative_error(preds, target):
-    # mask = mask_invalid_pixels(target)
-    # preds_flat = preds.masked_select(mask)
-    # target_flat = target.masked_select(mask)
-    #return torch.mean(torch.abs(preds_flat - target_flat)/target_flat)
-    #abs_diff = torch.abs(preds - target)
     return torch.sum(torch.abs(preds - target)/target), target.shape[0]
-    #return torch.sum(abs_diff), torch.sum(abs_diff/target), target.shape[0]
 
 class MeanAbsoluteRelativeError(Metric):
     def __init__(self):
         super().__init__()
-        #self.add_state("sum_abs_err", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("sum_rel_err", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("num_obs", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         rel, obs = mean_absolute_relative_error(preds, target)
-        #self.sum_abs_err += abs
         self.sum_rel_err += rel
         self.num_obs += obs
 
     def compute(self):
         return self.sum_rel_err / self.num_obs
-        #return self.sum_abs_err / self.num_obs
     
 def angle_distance(preds, target):
     mask = mask_invalid_pixels(target)
@@ -85,39 +72,34 @@ class AngleDistance(Metric):
         #return {'mean':self.angle_mean/self.num_obs, 'median':self.angle_median/self.num_obs, 'tolls':self.angle_tolls}
         return {'mean':self.angle_mean/self.num_obs, 'median':torch.mean(torch.tensor(self.angle_median)), 'tolls':self.angle_tolls}
 
-def add_plt(plt, data):
-    for k in data.keys():
-        plt[k].append(data[k].compute().cpu()) if isinstance(data[k], Metric) else plt[k].append(data[k])
-
 def plot_dict(plt_dict, path=None):
-    # nrows, ncols = len(plt_dict)//2, 2
-    # _, ax = plt.subplots(nrows, ncols)
-    # for i, k in enumerate(plt_dict.keys()):
-    #     ax[i//ncols][i%ncols].plot(plt_dict[k])
-    #     ax[i//ncols][i%ncols].set_title(k)
-    # plt.savefig(path) if path else None
     for k in plt_dict.keys():
         nplots = len(plt_dict[k])
-        ncols = 2
-        nrows = nplots//2 if nplots %2 == 0 else nplots//2 + 1
-        fig, ax = plt.subplots(nrows, ncols, figsize=(15, 15)) if nplots > 2 else plt.subplots(1, 2, figsize=(10, 10))
+        if nplots == 1:
+            fig, ax = plt.subplots(1, 1, figsize=(7, 4))
+        elif nplots == 2:
+            fig, ax = plt.subplots(1, 2, figsize=(15, 5))
+        else:
+            ncols = 2
+            nrows = nplots//2 if nplots%2 == 0 else nplots//2 + 1
+            fig, ax = plt.subplots(nrows, ncols, figsize=(15, 15)) if nplots > 2 else plt.subplots(1, 2, figsize=(15, 5))
         fig.suptitle(k)
         for i, t in enumerate(plt_dict[k].keys()):
-            if t == 'lambdas':
-                for l in plt_dict[k][t].keys():
-                    ax[i//ncols][i%ncols].plot(plt_dict[k][t][l], label=l)
-                ax[i//ncols][i%ncols].legend(loc="upper left")
-                #ax[i//ncols][i%ncols].set_title(t)
+            if nplots == 1:
+                ax.plot(plt_dict[k][t])
+                ax.set_title(t)
+            elif nplots == 2:
+                ax[i].plot(plt_dict[k][t]) 
+                ax[i].set_title(t)
             else:
-                ax[i//ncols][i%ncols].plot(plt_dict[k][t])
-            ax[i//ncols][i%ncols].set_title(t)
+                if t == 'lambdas':
+                    for l in plt_dict[k][t].keys():
+                        ax[i//ncols][i%ncols].plot(plt_dict[k][t][l], label=l)
+                    ax[i//ncols][i%ncols].legend(loc="upper left")
+                else:
+                    ax[i//ncols][i%ncols].plot(plt_dict[k][t])
+                ax[i//ncols][i%ncols].set_title(t)
         plt.savefig(path + k + '.png') if path else None
-
-# def compute_lambdas(losses_seg, losses_depth, T, K):
-#     w_seg = np.mean(losses_seg['new']) / np.mean(losses_seg['old'])
-#     w_depth = np.mean(losses_depth['new']) / np.mean(losses_depth['old'])
-#     w = F.softmax(torch.tensor([w_seg/T, w_depth/T]), dim=0)*K
-#     return w
 
 def compute_lambdas(losses_new, losses_old, K, T=2):
     w = []
@@ -127,16 +109,6 @@ def compute_lambdas(losses_new, losses_old, K, T=2):
     w = F.softmax(torch.tensor(w), dim=0)*K
     return dict(zip(losses_new.keys(), w))
 
-# def update_losses(losses_seg, losses_depth):
-#     losses_seg['old'] = losses_seg['new']
-#     losses_depth['old'] = losses_depth['new']
-#     losses_seg['new'] = []
-#     losses_depth['new'] = []
-def update_losses(losses_new, losses_old):
-    for k in losses_new.keys():
-        losses_old[k] = losses_new[k]
-        losses_new[k] = []
-
 def update_stats(stats, x, y):
     for t in stats.keys():
         stats[t].update(x, y)
@@ -145,10 +117,6 @@ def reset_stats(stats):
     for k in stats.keys():
         for t in stats[k].keys():
             stats[k][t].reset()
-
-# def save_model_opt(model, opt, path):
-#     torch.save(model.state_dict(), path)
-#     torch.save(opt.state_dict(), path)
 
 def ignore_index_seg(preds_seg, y_seg):
     preds_seg_flat = preds_seg.view(-1)
@@ -161,6 +129,39 @@ def ignore_index_seg(preds_seg, y_seg):
 def mask_invalid_pixels(y):
     mask = (y.sum(dim=1, keepdim=True) != 0).to(y.device) if len(y.shape) == 4 else (y != 0).to(y.device)
     return mask
+
+def make_plt_dict(loss, stats, train, grad=None, lambdas=None):
+    dict_str = 'train' if train else 'val'
+    plt_dict = {f'loss_{dict_str}': loss}
+    plt_dict[f'stats_{dict_str}'] = {}
+    for k in stats.keys():
+        for t in stats[k].keys():
+            plt_dict[f'stats_{dict_str}'][t] = stats[k][t]
+    if train:
+        if grad:
+            plt_dict[f'loss_{dict_str}']['grad'] = grad
+        if lambdas:
+            plt_dict[f'loss_{dict_str}']['lambdas'] = lambdas
+    return plt_dict
+
+def loss_handler(plt_losses, losses, writer, epoch, train=True, out=True):
+    train_str = 'train' if train else 'val'
+    for k in plt_losses.keys():
+        print(f"{train_str} loss {k}: {losses[k]:.4f}") if out else None
+        writer_string = f'{train_str}/loss/{k}'
+        writer.add_scalar(writer_string, losses[k], epoch)
+        plt_losses[k].append(losses[k])
+
+def stats_handler(plt_stats, stats, writer, epoch, train=True, out=True):
+    train_str = 'train' if train else 'val'
+    for k in stats.keys():
+        for t in stats[k].keys():
+            stat_comp = stats[k][t].compute() if t != 'ad' else stats[k][t].compute()['mean']
+            stat_comp = stat_comp.cpu().item()
+            print(f"{t}: {stat_comp:.4f}") if out else None
+            plt_stats[k][t].append(stat_comp)
+            writer_string = f'{train_str}/stats/{t}'
+            writer.add_scalar(writer_string, stat_comp, epoch)
 
 # def save_results(model_name, dataset_name):
 #     if not os.path.exists(f"../models/{dataset_name}/{model_name}"): 

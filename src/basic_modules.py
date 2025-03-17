@@ -126,14 +126,14 @@ class SharedNet(nn.Module):
         return enc_dict, dec_dict, down_indices, out_dict
     
 class Encoder(nn.Module):
-    def __init__(self, filter, mid_layers=3):
+    def __init__(self, filter, mid_layers):
         super().__init__()
         start_block = nn.Sequential(
             # ConvLayer(3, filter[0]), 
             # ConvLayer(filter[0], filter[0]), 
             # ConvLayer(filter[0], filter[0])
             ConvLayer(3, filter[0]),
-            *[ConvLayer(filter[0], filter[0]) for _ in range(mid_layers-1)]
+            *[ConvLayer(filter[0], filter[0]) for _ in range(mid_layers)]
         )
         self.enc_blocks = nn.ModuleList([start_block])
         self.down_blocks = nn.ModuleList([DownSampleBlock(filter[0], filter[0])])
@@ -146,7 +146,7 @@ class Encoder(nn.Module):
                 *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
             )
             self.enc_blocks.append(block)
-            self.down_blocks.append(DownSampleBlock(filter[i], filter[i+1]))
+            self.down_blocks.append(DownSampleBlock(filter[i+1], filter[i+1]))
 
     def forward(self, x):
         down_indices = []

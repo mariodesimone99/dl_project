@@ -17,22 +17,22 @@ class STAN(nn.Module):
             self.name = "stan_nor"
         else:
             raise ValueError("Invalid task")
-        self.task = task
+        self.tasks = task
         self.sh_net = SharedNet(filter, mid_layers)
         self.attnet = AttNet(filter)
-        if self.task == ['depth'] and depth_activation == 'relu':
+        if self.tasks == ['depth'] and depth_activation == 'relu':
             self.head = nn.Sequential(
             nn.Conv2d(filter[0], 1, kernel_size=1), 
             nn.ReLU()
         )
-        elif self.task == ['depth'] and depth_activation == 'sigmoid':
+        elif self.tasks == ['depth'] and depth_activation == 'sigmoid':
             self.head = nn.Sequential(
             nn.Conv2d(filter[0], 1, kernel_size=1), 
             nn.Sigmoid()
         )
-        elif self.task == ['segmentation']:
+        elif self.tasks == ['segmentation']:
             self.head = nn.Conv2d(filter[0], self.classes, kernel_size=1)
-        elif self.task == ['normal']: # normals estimation
+        elif self.tasks == ['normal']: # normals estimation
             self.head = nn.Sequential(
             nn.Conv2d(filter[0], 3, kernel_size=1),
             nn.Tanh(),
