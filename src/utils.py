@@ -1,8 +1,13 @@
 import torch
 import torch.nn as nn
-from torchmetrics import Metric
+from torchmetrics import Metric 
+from torchmetrics.segmentation import MeanIoU
+from torchmetrics.classification import MulticlassAccuracy 
+from torchmetrics.regression import MeanAbsoluteError
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
+import os
+
 
 #TODO: fix the application if the last layer has not a relu
 def init_weights(model):
@@ -118,13 +123,13 @@ def reset_stats(stats):
         for t in stats[k].keys():
             stats[k][t].reset()
 
-def ignore_index_seg(preds_seg, y_seg):
-    preds_seg_flat = preds_seg.view(-1)
-    y_seg_flat = y_seg.view(-1)
-    pos_idx = torch.where(y_seg_flat != -1)
-    preds_seg_flat = preds_seg_flat[pos_idx[0]].unsqueeze(0)
-    y_seg_flat = y_seg_flat[pos_idx[0]].unsqueeze(0)
-    return preds_seg_flat, y_seg_flat
+# def ignore_index_seg(preds_seg, y_seg):
+#     preds_seg_flat = preds_seg.view(-1)
+#     y_seg_flat = y_seg.view(-1)
+#     pos_idx = torch.where(y_seg_flat != -1)
+#     preds_seg_flat = preds_seg_flat[pos_idx[0]].unsqueeze(0)
+#     y_seg_flat = y_seg_flat[pos_idx[0]].unsqueeze(0)
+#     return preds_seg_flat, y_seg_flat
 
 def mask_invalid_pixels(y):
     mask = (y.sum(dim=1, keepdim=True) != 0).to(y.device) if len(y.shape) == 4 else (y != 0).to(y.device)
@@ -144,6 +149,13 @@ def make_plt_dict(loss, stats, train, grad=None, lambdas=None):
             plt_dict[f'loss_{dict_str}']['lambdas'] = lambdas
     return plt_dict
 
+def move_tensors(x, y_dict, device):
+    x = x.to(device).to(torch.float)
+    y_dict = {k: v.to(device).to(torch.float) for k, v in y_dict.items()}
+    if 'segmentation' in y_dict.keys():
+        y_dict['segmentation'] = y_dict['segmentation'].to(torch.long)
+    return x, y_dict
+
 def loss_handler(plt_losses, losses, writer, epoch, train=True, out=True):
     train_str = 'train' if train else 'val'
     for k in plt_losses.keys():
@@ -162,6 +174,64 @@ def stats_handler(plt_stats, stats, writer, epoch, train=True, out=True):
             plt_stats[k][t].append(stat_comp)
             writer_string = f'{train_str}/stats/{t}'
             writer.add_scalar(writer_string, stat_comp, epoch)
+
+def visualize_results(model, device, x, y, id_result, dwa_trained=False, save=True):
+    with torch.no_grad():
+        if save: 
+            if len(model.tasks) == 1:
+                path = f"../results/{model.name}"
+            else:
+                dwa_string = 'dwa' if dwa_trained else 'equal'
+                path = f"../results/{model.name}_{dwa_string}"
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+        stats = {'depth':{'mae': MeanAbsoluteError(), 
+                'mre': MeanAbsoluteRelativeError()},
+
+                'segmentation':{'miou': MeanIoU(num_classes=model.classes, per_class=False, include_background=False, input_format='index'), 
+                'pix_acc': MulticlassAccuracy(num_classes=model.classes, multidim_average='global', average='micro')},
+
+                'normal':{'ad': AngleDistance()}}
+        for t in stats.keys():
+            for s in stats[t].keys():
+                stats[t][s] = stats[t][s].to(device)
+        model.to(device)
+        B, _, _, _ = x.shape
+        model.eval()
+        # x = x.to(device).to(torch.float)
+        x, y = move_tensors(x, y, device)
+        output = model(x)
+        if 'segmentation' in model.tasks:
+            #out_seg_flat, y_seg_flat = ignore_index_seg(output['segmentation'], y['segmentation'])
+            output['segmentation'] = torch.argmax(output['segmentation'], dim=1)
+            mask = (y['segmentation'] != -1).to(torch.long).to(device)
+            output_stats_seg = output['segmentation']*mask
+            y_stats_seg = y['segmentation']*mask
+            y['segmentation'] *= mask
+        for i in range(B):
+            for t in model.tasks:
+                _, ax = plt.subplots(1, 2, figsize=(11, 7))
+                y_plt = y[t][i].cpu().permute(1, 2, 0) if len(y[t].shape) == 4 else y[t][i].cpu()
+                ax[0].imshow(y_plt)
+                ax[0].set_title(f'Ground Truth {t}')
+                out_plt = output[t][i].cpu().permute(1, 2, 0) if len(output[t].shape) == 4 else output[t][i].cpu()
+                ax[1].imshow(out_plt)
+                ax[1].set_title(f'Predicted {t}')
+                plt.show()
+                if save:
+                    plt.savefig(f"{path}/{t}_results{id_result+i}.png")
+                if t == 'segmentation':
+                    output_stats, y_stats = output_stats_seg[i], y_stats_seg[i]
+                else:
+                    mask = mask_invalid_pixels(y[t])
+                    output_stats, y_stats = output[t][i].masked_select(mask[i]), y[t][i].masked_select(mask[i])
+                for s in stats[t].keys():
+                    if s == 'ad':
+                        for k in stats[t][s].keys():
+                            print(f"{s} {k}: {stats[t][s][k](output_stats, y_stats).item()}")
+                    else:
+                        print(f"{s}: {stats[t][s](output_stats, y_stats).item()}")
 
 # def save_results(model_name, dataset_name):
 #     if not os.path.exists(f"../models/{dataset_name}/{model_name}"): 

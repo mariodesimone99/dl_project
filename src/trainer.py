@@ -4,7 +4,7 @@ from torchmetrics.segmentation import MeanIoU
 from torchmetrics.classification import MulticlassAccuracy
 from torchmetrics.regression import MeanAbsoluteError
 from utils import MeanAbsoluteRelativeError, AngleDistance
-from utils import plot_dict, compute_lambdas, reset_stats, update_stats, mask_invalid_pixels, make_plt_dict, loss_handler, stats_handler 
+from utils import plot_dict, compute_lambdas, reset_stats, update_stats, mask_invalid_pixels, make_plt_dict, loss_handler, stats_handler, move_tensors 
 from basic_modules import L1Loss, DotProductLoss
 import os
 from tqdm import tqdm
@@ -75,7 +75,7 @@ class Trainer:
             reset_stats(stats_val)
 
             for x, y_dict in tqdm(val_dl):
-                x, y_dict = self._move_tensors(x, y_dict)
+                x, y_dict = move_tensors(x, y_dict, self.device)
                 losses = self._compute_loss(x, y_dict, stats_val)
                 loss = sum(losses.values())
                 for k in losses.keys():
@@ -96,13 +96,6 @@ class Trainer:
             grad_norm += p_grad**2
         return grad_norm**0.5
 
-    def _move_tensors(self, x, y_dict):
-        x = x.to(self.device).to(torch.float)
-        y_dict = {k: v.to(self.device).to(torch.float) for k, v in y_dict.items()}
-        if 'segmentation' in y_dict.keys():
-            y_dict['segmentation'] = y_dict['segmentation'].to(torch.long)
-        return x, y_dict
-
     def train(self, train_dl, val_dl=None, epochs=10, save=False, check=5, grad=True):
         if val_dl != None:
             plt_loss_val = {k: [] for k in self.plt_loss_train.keys()}
@@ -120,7 +113,7 @@ class Trainer:
 
             for x, y_dict in tqdm(train_dl):
                 self.opt.zero_grad()
-                x, y_dict = self._move_tensors(x, y_dict)
+                x, y_dict = move_tensors(x, y_dict, self.device)
                 losses = self._compute_loss(x, y_dict, self.stats)
                 loss = sum([self.lambdas[k]*losses[k] for k in losses.keys()])
                 loss.backward()
@@ -130,7 +123,6 @@ class Trainer:
                 for k in losses.keys():
                     losses_epoch[k] += losses[k].item()
 
-            
             losses_epoch = {k: losses_epoch[k]/len(train_dl) for k in losses_epoch.keys()}
 
             if self.dwa:

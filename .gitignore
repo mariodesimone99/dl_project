@@ -6,6 +6,7 @@
 /models_old
 /runs
 /runs_old
+/results
 src/__pycache__/basic_modules.cpython-38.pyc
 src/__pycache__/cityscapes_dataset.cpython-38.pyc
 src/__pycache__/cross_stitchnet.cpython-38.pyc
