@@ -7,7 +7,6 @@ class DepthNet(SegNet):
         self.name = "depthnet"
         self.tasks = ['depth']
         self.classes = 1
-        # self.activation = nn.ReLU() if depth_activation == 'relu' else nn.Sigmoid()
         self.activation = depth_activation
 
     def forward(self, x):
@@ -15,4 +14,3 @@ class DepthNet(SegNet):
         logits = self.activation(logits[self.tasks[0]])
         logits_dict = {self.tasks[0]: logits}
         return logits_dict
-        #return self.activation(logits)

@@ -16,10 +16,6 @@ from splitnet import SplitNet
 from stan import STAN
 from trainer import Trainer
 
-# EPOCHS = 100
-# LEARNING_RATE = 1e-4
-# DEVICE = "cuda:1" if torch.cuda.is_available() else "cpu"
-
 def instance_model(config):
     filter = config['filter']
     models_dict = {}
@@ -47,20 +43,14 @@ def instance_dataset(config):
     return dataset_dict[config['dataset_name']]['train'], dataset_dict[config['dataset_name']]['val']
 
 if __name__ == "__main__":
-    # config = {}
-    # for arg in sys.argv[1:]:
-    #     config_tmp = yaml.safe_load(open(arg, "r"))
-    #     config = {**config, **config_tmp}
 
-    # config_model = yaml.safe_load(open(sys.argv[1], "r"))
-    # config_dataset = yaml.safe_load(open(sys.argv[2], "r"))
-    config_model = yaml.safe_load(open("./config/prova.yaml", "r"))
-    config_dataset = yaml.safe_load(open("./config/prova_dataset.yaml", "r"))
+    config_model = yaml.safe_load(open(sys.argv[1], "r"))
+    config_dataset = yaml.safe_load(open(sys.argv[2], "r"))
+    #config_model = yaml.safe_load(open("./config/prova.yaml", "r"))
+    #config_dataset = yaml.safe_load(open("./config/prova_dataset.yaml", "r"))
     config = {**config_dataset, **config_model}
     config['depth_activation'] = nn.ReLU() if config['depth_activation'] == 'relu' else nn.Sigmoid()
     config['dwa'] = False
-    # with open(sys.argv[1], "r") as f:
-    #     config = yaml.safe_load(f)
 
     EPOCHS = config['epochs']
     BATCH_SIZE = config['batch_size']
@@ -85,29 +75,8 @@ if __name__ == "__main__":
     print(f"Learning rate: {LEARNING_RATE}\n")
 
     model = instance_model(config)
-
-    # model_name = config["model_name"]
-
-    # if model_name == "cross_stitch":
-    #     model = CrossStitchNet(filter=config['filter'], classes=config['classes'])
-    # elif model_name == "densenet":
-    #     model = DenseNet(filter=config['filter'], classes=config['classes'])
-    # elif model_name == "depthnet":
-    #     model = DepthNet(filter=config['filter'], mid_layers=config['mid_layers'])
-    # elif model_name == "mtan":
-    #     model = MTAN(filter=config['filter'], classes=config['classes'])
-    # elif model_name == "segnet":
-    #     model = SegNet(filter=config['filter'], classes=config['classes'], mid_layers=config['mid_layers'])
-    # elif model_name == "splitnet":
-    #     model = SplitNet(filter=config['filter'], classes=config['classes'], mid_layers=config['mid_layers'])
-    # elif model_name == "stan_dep" or model_name == "stan_seg":
-    #     model = STAN(filter=config['filter'], classes=config['classes'])
-    # else:
-    #     raise ValueError(f"Model {model_name} not supported")
     
     print(f"Model will be trained on {config['dataset_name']} Dataset for tasks: {config['tasks']}")
-    # train_dataset = CityscapesDataset(root=config['dataset_path'], split='train', labels=config['classes'])
-    # val_dataset = CityscapesDataset(root=config['dataset_path'], split='val', labels=config['classes'])
     train_dataset, val_dataset = instance_dataset(config)
     
     train_dl = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False)
@@ -123,7 +92,7 @@ if __name__ == "__main__":
 
     id_result = 0
     nresults = 10
-    for i, (image, out) in enumerate(val_dl):
+    for image, out in val_dl:
         state = visualize_results(model, DEVICE, image, out, id_result)
         id_result += BATCH_SIZE
         if state:

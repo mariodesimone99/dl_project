@@ -21,4 +21,3 @@ class SegNet(nn.Module):
         logits = self.seg_head(logits)
         logits_dict = {self.tasks[0]: logits}
         return logits_dict
-        # return logits

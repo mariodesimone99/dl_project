@@ -10,9 +10,6 @@ import os
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-#TODO: check relative path (train function starts from the root project folder while trainer from the src folder)
-#TODO: make some trials to check the attach with tmux
-
 class Trainer:
     def __init__(self, model, opt, dataset_name, device, dwa=False, save_path='./'):
         self.path = save_path + 'models/'

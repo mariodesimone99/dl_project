@@ -18,4 +18,3 @@ class NormalNet(SegNet):
         logits = self.activation(logits[self.tasks[0]])
         logits_dict = {self.tasks[0]: logits}
         return logits_dict
-        # return self.activation(logits)

@@ -26,7 +26,6 @@ class CityscapesDataset(Dataset):
         depth = torch.from_numpy(np.load(self.depth[idx])).squeeze(2)
         out_dict = {'segmentation': label, 'depth': depth}
         return image, out_dict
-        # return image, label, depth
 
     def get_classes(self):
         return self.classes

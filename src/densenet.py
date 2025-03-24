@@ -67,12 +67,6 @@ class DenseNet(nn.Module):
         self.sh_net = SharedNet(filter, mid_layers)
         self.tasks_net = nn.ModuleDict()
         for task in self.tasks:
-            # if task == 'depth' and depth_activation == 'sigmoid':
-            #     self.tasks_net[task] = TaskNet(filter, classes=1, activation=nn.Sigmoid())
-            #     task_str += 'dep_'
-            # elif task == 'depth' and depth_activation == 'relu':
-            #     self.tasks_net[task] = TaskNet(filter, classes=1, activation=nn.ReLU())
-            #     task_str += 'dep_'
             if task == 'segmentation':
                 self.tasks_net[task] = TaskNet(filter, classes=self.classes, activation=nn.Identity())
                 task_str += 'seg_'
@@ -85,19 +79,6 @@ class DenseNet(nn.Module):
             else:
                 raise ValueError("Invalid task")
         self.name = "densenet" + task_str[:-1]
-        # self.seg_net = TaskNet(filter, self.classes)
-        
-        # if len(self.tasks) == 2:
-        #     self.depth_net = nn.Sequential(
-        #         TaskNet(filter, classes=1), 
-        #         nn.Sigmoid()
-        #     )
-        # else:
-        #     self.depth_net = nn.Sequential(
-        #         TaskNet(filter, classes=1), 
-        #         nn.ReLU()
-        #     )
-        #     self.norm_net = TaskNet(filter, classes=3)
         init_weights(self)
 
     def forward(self, x):
@@ -105,12 +86,4 @@ class DenseNet(nn.Module):
         logits_dict = {}
         for key in self.tasks:
             logits_dict[key] = self.tasks_net[key](x, out_dict)
-        # logits_seg = self.seg_net(x, out_dict)
-        # logits_depth = self.depth_net(x, out_dict)
-        # logits_dict = {'segmentation': logits_seg, 'depth': logits_depth}
-        # if len(self.tasks) == 3:
-        #     logits_normal = self.norm_net(x, out_dict)
-        #     logits_dict['normal'] = logits_normal
-            # return logits_seg, logits_depth, logits_normals
         return logits_dict
-        #return logits_seg, logits_depth

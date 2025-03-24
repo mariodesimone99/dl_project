@@ -49,17 +49,13 @@ class EncoderSH(nn.Module):
             *[ConvLayer(filter[0], filter[0]) for _ in range(mid_layers)]
         )
         self.enc_blocks.append(block)
-        # self.enc_blocks.append(ConvLayer(3, filter[0]))
         self.down_blocks.append(DownSampleBlock(filter[0], filter[0]))
         for i in range(len(filter) - 1):
-            # self.enc_blocks.append(ConvLayer(filter[i], filter[i+1]))
-            # self.down_blocks.append(DownSampleBlock(filter[i+1], filter[i+1]))
             block = nn.Sequential(
                 ConvLayer(filter[i], filter[i+1]),
                 *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
             )
             self.enc_blocks.append(block)
-            # self.enc_blocks.append(ConvLayer(filter[i], filter[i+1]))
             self.down_blocks.append(DownSampleBlock(filter[i+1], filter[i+1]))
 
     def forward(self, x):
@@ -85,7 +81,6 @@ class DecoderSH(nn.Module):
         self.dec_blocks = nn.ModuleList()
         for i in range(len(filter) - 1):
             self.up_blocks.append(UpSampleBlock(filter[i], filter[i+1]))
-            # self.dec_blocks.append(ConvLayer(filter[i+1], filter[i+1]))
             block = nn.Sequential(
                 ConvLayer(filter[i+1], filter[i+1]),
                 *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
@@ -97,9 +92,7 @@ class DecoderSH(nn.Module):
             *[ConvLayer(filter[-1], filter[-1]) for _ in range(mid_layers)]
         )
         self.dec_blocks.append(block)
-        # self.dec_blocks.append(ConvLayer(filter[-1], filter[-1]))
             
-
     def forward(self, x, down_indices):
         up_layer = []
         dec_layer = []
@@ -129,9 +122,6 @@ class Encoder(nn.Module):
     def __init__(self, filter, mid_layers):
         super().__init__()
         start_block = nn.Sequential(
-            # ConvLayer(3, filter[0]), 
-            # ConvLayer(filter[0], filter[0]), 
-            # ConvLayer(filter[0], filter[0])
             ConvLayer(3, filter[0]),
             *[ConvLayer(filter[0], filter[0]) for _ in range(mid_layers)]
         )
@@ -139,9 +129,6 @@ class Encoder(nn.Module):
         self.down_blocks = nn.ModuleList([DownSampleBlock(filter[0], filter[0])])
         for i in range(len(filter) - 1):
             block = nn.Sequential(
-                # ConvLayer(filter[i], filter[i+1]), 
-                # ConvLayer(filter[i+1], filter[i+1]), 
-                # ConvLayer(filter[i+1], filter[i+1]),
                 ConvLayer(filter[i], filter[i+1]),
                 *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
             )
@@ -165,17 +152,11 @@ class Decoder(nn.Module):
         for i in range(len(filter) - 1):
             self.up_blocks.append(UpSampleBlock(filter[i], filter[i+1]))
             block = nn.Sequential(
-                # ConvLayer(filter[i+1], filter[i+1]), 
-                # ConvLayer(filter[i+1], filter[i+1]),
-                # ConvLayer(filter[i+1], filter[i+1])
                 *[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]
             )
             self.dec_blocks.append(block)
         self.up_blocks.append(UpSampleBlock(filter[-1], filter[-1]))
         block = nn.Sequential(
-            # ConvLayer(filter[-1], filter[-1]), 
-            # ConvLayer(filter[-1], filter[-1]),
-            # ConvLayer(filter[-1], filter[-1])
             *[ConvLayer(filter[-1], filter[-1]) for _ in range(mid_layers)]
         )
         self.dec_blocks.append(block)
@@ -191,12 +172,10 @@ class EncDecNet(nn.Module):
     def __init__(self, filter, mid_layers=3):
         super().__init__()
         self.enc = Encoder(filter, mid_layers)
-        # self.mid = nn.Sequential(*[ConvLayer(filter[-1], filter[-1]) for _ in range(mid_layers)])
         self.dec = Decoder([filter[-(i+1)] for i in range(len(filter))], mid_layers)  
 
     def forward(self, x):
         logits, down_indices = self.enc(x)
-        # logits = self.mid(logits)
         logits = self.dec(logits, down_indices)
         return logits
 
@@ -214,35 +193,14 @@ class L1Loss(nn.Module):
         super().__init__()
 
     def forward(self, x, y):
-        # Adapt shape
-        # x = x.squeeze(1)
-        # Find the invalid pixels (depth 0)
-        # mask = (y != 0).to(torch.float).to(x.device)
         mask = mask_invalid_pixels(y).to(torch.float).to(x.device)
         return torch.sum(torch.abs(x-y)*mask)/torch.sum(mask)
     
 class DotProductLoss(nn.Module):
-    # def __init__(self, reduction='mean'):
     def __init__(self):
         super().__init__()
-        # self.reduction = reduction
 
-    #TODO: check correctness
     def forward(self, x, y):
-        # Normalize pixels
-        #x_norm = F.normalize(x, p=2, dim=1)
-        # Find the invalid pixels (points orthogonal to every axes)
-        # mask = (torch.sum(y, dim=1, keepdim=True) != 0).to(torch.float).to(x.device)
         mask = mask_invalid_pixels(y).to(torch.float)
         # 1 - dot product to make it a loss with minimum 0 because both 
         return 1-torch.sum(x*y*mask) / torch.sum(mask)
-        # B, C, H, W = x.shape
-        # x_flat = x_norm.view(B, 1, C*H*W)
-        # y_flat = y.view(B, C*H*W, 1)
-        # loss = -(1/H*W)*torch.matmul(x_flat, y_flat).squeeze(1)
-        # if self.reduction == 'mean':
-        #     return torch.mean(loss)
-        # elif self.reduction == 'sum':
-        #     return torch.sum(loss)
-        # else:
-        #     return loss

@@ -8,16 +8,6 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import os
 
-
-#TODO: fix the application if the last layer has not a relu
-# def init_weights(model):
-#     for m in model.modules():
-#         if isinstance(m, nn.Conv2d):
-#             nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-#         elif isinstance(m, nn.BatchNorm2d):
-#             nn.init.constant_(m.weight, 1)
-#             nn.init.constant_(m.bias, 0)
-
 def init_weights(model):
     for m in model.modules():
         if isinstance(m, nn.Conv2d):
@@ -49,15 +39,6 @@ class MeanAbsoluteRelativeError(Metric):
     
 def angle_distance(preds, target):
     mask = mask_invalid_pixels(target)
-    # preds_angle = torch.acos(preds)*180/torch.pi
-    # target_angle = torch.acos(target)*180/torch.pi
-    # # print(f"Preds: {preds_angle}")
-    # # print(f"Targets: {target_angle}")
-    # angle_diff = torch.abs(preds_angle - target_angle)
-    # print(f"Angle diff: {angle_diff}")
-    # print(f"Mean {torch.mean(angle_diff)}")
-    # print(f"Median {torch.median(angle_diff)}")
-    # print(f"Tolls {[torch.sum(angle_diff <= toll)/angle_diff.numel() for toll in [11.25, 22.5, 30]]}")
     dot_prod = torch.sum(preds*target, dim=1)
     angle_diff = torch.acos(torch.clamp(dot_prod.masked_select(mask), -1, 1)).rad2deg()
     return angle_diff, angle_diff.shape[0]
@@ -67,23 +48,18 @@ class AngleDistance(Metric):
         super().__init__()
         self.tolls = tolls
         self.add_state("angle_mean", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        #self.add_state("angle_median", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("angle_median", default=[], dist_reduce_fx="sum")
         self.add_state("angle_tolls", default=torch.tensor([0.0 for _ in range(len(tolls))]), dist_reduce_fx="sum")
         self.add_state("num_obs", default=torch.tensor(0), dist_reduce_fx="sum")
 
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         angle_diff, obs = angle_distance(preds, target)
-        #self.angle_mean += torch.mean(angle_diff)
         self.angle_mean += torch.sum(angle_diff)
-        #self.angle_median += torch.median(angle_diff)
         self.angle_median.append(torch.median(angle_diff))
-        #self.angle_tolls += torch.tensor([torch.sum(angle_diff <= toll)/angle_diff.numel() for toll in self.tolls]).to(self.angle_tolls.device)
         self.angle_tolls += torch.tensor([torch.sum(angle_diff <= toll) for toll in self.tolls]).to(self.angle_tolls.device)
         self.num_obs += obs
 
     def compute(self):
-        #return {'mean':self.angle_mean/self.num_obs, 'median':self.angle_median/self.num_obs, 'tolls':self.angle_tolls}
         return {'mean':self.angle_mean/self.num_obs, 'median':torch.mean(torch.tensor(self.angle_median)), 'tolls':self.angle_tolls/self.num_obs}
 
 def plot_dict(plt_dict, path=None):
@@ -131,14 +107,6 @@ def reset_stats(stats):
     for k in stats.keys():
         for t in stats[k].keys():
             stats[k][t].reset()
-
-# def ignore_index_seg(preds_seg, y_seg):
-#     preds_seg_flat = preds_seg.view(-1)
-#     y_seg_flat = y_seg.view(-1)
-#     pos_idx = torch.where(y_seg_flat != -1)
-#     preds_seg_flat = preds_seg_flat[pos_idx[0]].unsqueeze(0)
-#     y_seg_flat = y_seg_flat[pos_idx[0]].unsqueeze(0)
-#     return preds_seg_flat, y_seg_flat
 
 def mask_invalid_pixels(y):
     mask = (y.sum(dim=1, keepdim=True) != 0).to(y.device) if len(y.shape) == 4 else (y != 0).to(y.device)
@@ -195,8 +163,6 @@ def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=F
             else:
                 dwa_string = 'dwa' if dwa_trained else 'equal'
                 path = save_path +  f"results/{model.name}_{dwa_string}"
-                # if not os.path.exists(path):
-                #     os.makedirs(path)
                 for t in model.tasks:
                     if not os.path.exists(path + f'/{t}'):
                         os.makedirs(path + f'/{t}')
@@ -214,11 +180,9 @@ def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=F
         model.to(device)
         B, _, _, _ = x.shape
         model.eval()
-        # x = x.to(device).to(torch.float)
         x, y = move_tensors(x, y, device)
         output = model(x)
         if 'segmentation' in model.tasks:
-            #out_seg_flat, y_seg_flat = ignore_index_seg(output['segmentation'], y['segmentation'])
             output['segmentation'] = torch.argmax(output['segmentation'], dim=1)
             mask = (y['segmentation'] != -1).to(torch.long).to(device)
             output_stats_seg = output['segmentation']*mask
