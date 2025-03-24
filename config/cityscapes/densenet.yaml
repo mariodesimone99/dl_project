@@ -1,4 +1,0 @@
-model_name : "densenet"
-filter: [64, 128, 256, 512, 512]
-tasks: ["segmentation", "depth"]
-depth_activation: "relu"

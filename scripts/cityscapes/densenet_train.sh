@@ -1,1 +1,1 @@
-python ./src/train.py ./config/cityscapes/densenet.yaml ./config/cityscapes/dataset.yaml
+python ./src/train.py ./config/densenet.yaml ./config/cityscapes.yaml

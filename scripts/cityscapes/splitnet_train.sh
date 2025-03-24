@@ -1,1 +1,1 @@
-python ./src/train.py ./config/cityscapes/splitnet.yaml ./config/cityscapes/dataset.yaml
+python ./src/train.py ./config/splitnet.yaml ./config/cityscapes.yaml

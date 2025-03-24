@@ -9,7 +9,7 @@ class CityscapesDataset(Dataset):
     def __init__(self, root="../dataset/cityscapes_preprocessed", split="train", labels=7):
         self.root = root
         self.split = split
-        self.classes = labels+1
+        self.classes = labels # without taking into account background
         self.images = glob.glob(os.path.join(root, split, "image", "*.npy"))
         self.labels = glob.glob(os.path.join(root, split, f"label_{labels}", "*.npy"))
         self.depth = glob.glob(os.path.join(root, split, "depth", "*.npy"))

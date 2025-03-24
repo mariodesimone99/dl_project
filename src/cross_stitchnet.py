@@ -5,7 +5,7 @@ from utils import init_weights
 
 
 class CrossStitchNet(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'):
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=1, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation=nn.ReLU()):
         super().__init__()
         task_str = '_'
         self.classes = classes + 1
@@ -35,44 +35,46 @@ class CrossStitchNet(nn.Module):
         for task in self.tasks:
             self.nets[task] = nn.ModuleList()
             self.nets[task].append(ConvLayer(3, filter[0]))
-            if task == 'segmentation':
-                task_str += 'seg_'
-            elif task == 'depth':
-                task_str += 'dep_'
-            elif task == 'normal':
-                task_str += 'nor_'
-            else:
-                raise ValueError('Invalid task')
         for i in range(len(filter)-1):
             for task in self.tasks:
                 self.nets[task].append(ConvLayer(filter[i], filter[i+1]))
-                self.nets[task].append(ConvLayer(filter[i+1], filter[i+1]))
+                self.nets[task].append(nn.Sequential(*[ConvLayer(filter[i+1], filter[i+1]) for _ in range(mid_layers)]))
                 self.nets[task].append(DownSampleBlock(filter[i+1], filter[i+1]))
         for i in range(len(filter)-1):
             for task in self.tasks:
                 self.nets[task].append(UpSampleBlock(filter[-(i+1)], filter[-(i+2)]))
-                self.nets[task].append(ConvLayer(filter[-(i+2)], filter[-(i+2)]))
+                self.nets[task].append(nn.Sequential(*[ConvLayer(filter[-(i+2)], filter[-(i+2)]) for _ in range(mid_layers)]))
                 self.nets[task].append(ConvLayer(filter[-(i+2)], filter[-(i+2)]))
         for task in self.tasks:
             self.nets[task].append(ConvLayer(filter[0], filter[0]))
             if task == 'segmentation':
                 self.nets[task].append(nn.Conv2d(filter[0], self.classes, kernel_size=1))
-            elif task == 'depth' and depth_activation == 'sigmoid':
+                task_str += 'seg_'
+            # elif task == 'depth' and depth_activation == 'sigmoid':
+            #     self.nets[task].append(nn.Sequential(
+            #         nn.Conv2d(filter[0], 1, kernel_size=1),
+            #         nn.Sigmoid())
+            #     )
+            # elif task == 'depth' and depth_activation == 'relu':
+            #     self.nets[task].append(nn.Sequential(
+            #         nn.Conv2d(filter[0], 1, kernel_size=1),
+            #         nn.ReLU())
+            #     )
+            elif task == 'depth':
                 self.nets[task].append(nn.Sequential(
                     nn.Conv2d(filter[0], 1, kernel_size=1),
-                    nn.Sigmoid())
+                    depth_activation)
                 )
-            elif task == 'depth' and depth_activation == 'relu':
-                self.nets[task].append(nn.Sequential(
-                    nn.Conv2d(filter[0], 1, kernel_size=1),
-                    nn.ReLU())
-                )
+                task_str += 'dep_'
             elif task == 'normal':
                 self.nets[task].append(nn.Sequential(
                     nn.Conv2d(filter[0], 3, kernel_size=1),
                     nn.Tanh(), 
                     Normalize())
                 )
+                task_str += 'nor_'
+            else:
+                raise ValueError('Invalid task')
 
         # heads = nn.ModuleList()
         # if 'segmentation' in self.tasks:

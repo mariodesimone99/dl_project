@@ -1,1 +1,1 @@
-python ./src/train.py ./config/cityscapes/depthnet.yaml ./config/cityscapes/dataset.yaml
+python ./src/train.py ./config/depthnet.yaml ./config/cityscapes.yaml

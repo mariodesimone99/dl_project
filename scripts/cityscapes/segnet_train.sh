@@ -1,1 +1,1 @@
-python ./src/train.py ./config/cityscapes/segnet.yaml ./config/cityscapes/dataset.yaml
+python ./src/train.py ./config/segnet.yaml ./config/cityscapes.yaml

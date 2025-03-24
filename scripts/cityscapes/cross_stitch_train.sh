@@ -1,1 +1,1 @@
-python ./src/train.py ./config/cityscapes/cross_stitch.yaml ./config/cityscapes/dataset.yaml
+python ./src/train.py ./config/cross_stitch.yaml ./config/cityscapes.yaml

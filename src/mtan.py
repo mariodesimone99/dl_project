@@ -81,7 +81,7 @@ class AttNet(nn.Module):
         return logits
     
 class MTAN(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation='relu'):
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation=nn.ReLU()):
         super().__init__()
         task_str = '_'
         self.classes = classes + 1 #background
@@ -111,16 +111,22 @@ class MTAN(nn.Module):
             if task == 'segmentation':
                 self.heads[task] = nn.Conv2d(filter[0], self.classes, kernel_size=1)
                 task_str += 'seg_'
-            elif task == 'depth' and depth_activation == 'relu':
+            # elif task == 'depth' and depth_activation == 'relu':
+            #     self.heads[task] = nn.Sequential(
+            #         nn.Conv2d(filter[0], 1, kernel_size=1), 
+            #         nn.ReLU()
+            #     )
+            #     task_str += 'dep_'
+            # elif task == 'depth' and depth_activation == 'sigmoid':
+            #     self.heads[task] = nn.Sequential(
+            #         nn.Conv2d(filter[0], 1, kernel_size=1), 
+            #         nn.Sigmoid()
+            #     )
+            #     task_str += 'dep_'
+            elif task == 'depth':
                 self.heads[task] = nn.Sequential(
-                    nn.Conv2d(filter[0], 1, kernel_size=1), 
-                    nn.ReLU()
-                )
-                task_str += 'dep_'
-            elif task == 'depth' and depth_activation == 'sigmoid':
-                self.heads[task] = nn.Sequential(
-                    nn.Conv2d(filter[0], 1, kernel_size=1), 
-                    nn.Sigmoid()
+                    nn.Conv2d(filter[0], 1, kernel_size=1),
+                    depth_activation
                 )
                 task_str += 'dep_'
             elif task == 'normal':

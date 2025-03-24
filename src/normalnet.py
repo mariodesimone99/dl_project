@@ -15,7 +15,7 @@ class NormalNet(SegNet):
 
     def forward(self, x):
         logits = super().forward(x)
-        logits = self.activation(logits)
+        logits = self.activation(logits[self.tasks[0]])
         logits_dict = {self.tasks[0]: logits}
         return logits_dict
         # return self.activation(logits)

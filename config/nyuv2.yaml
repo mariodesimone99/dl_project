@@ -1,0 +1,8 @@
+classes: 12
+depth_activation: "sigmoid"
+batch_size: 2
+epochs: 100
+lr: 0.0001
+dataset_path: "./dataset/nyuv2_preprocessed"
+dataset_name: "nyuv2"
+tasks: ["segmentation", "depth", "normal"]

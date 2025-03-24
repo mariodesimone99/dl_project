@@ -10,10 +10,19 @@ import os
 
 
 #TODO: fix the application if the last layer has not a relu
+# def init_weights(model):
+#     for m in model.modules():
+#         if isinstance(m, nn.Conv2d):
+#             nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+#         elif isinstance(m, nn.BatchNorm2d):
+#             nn.init.constant_(m.weight, 1)
+#             nn.init.constant_(m.bias, 0)
+
 def init_weights(model):
     for m in model.modules():
         if isinstance(m, nn.Conv2d):
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            nn.init.xavier_uniform_(m.weight)
+            nn.init.constant_(m.bias, 0) if m.bias is not None else None
         elif isinstance(m, nn.BatchNorm2d):
             nn.init.constant_(m.weight, 1)
             nn.init.constant_(m.bias, 0)
@@ -75,7 +84,7 @@ class AngleDistance(Metric):
 
     def compute(self):
         #return {'mean':self.angle_mean/self.num_obs, 'median':self.angle_median/self.num_obs, 'tolls':self.angle_tolls}
-        return {'mean':self.angle_mean/self.num_obs, 'median':torch.mean(torch.tensor(self.angle_median)), 'tolls':self.angle_tolls}
+        return {'mean':self.angle_mean/self.num_obs, 'median':torch.mean(torch.tensor(self.angle_median)), 'tolls':self.angle_tolls/self.num_obs}
 
 def plot_dict(plt_dict, path=None):
     for k in plt_dict.keys():
@@ -175,16 +184,22 @@ def stats_handler(plt_stats, stats, writer, epoch, train=True, out=True):
             writer_string = f'{train_str}/stats/{t}'
             writer.add_scalar(writer_string, stat_comp, epoch)
 
-def visualize_results(model, device, x, y, id_result, dwa_trained=False, save=True):
+def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=False, save=True, out=False, save_path='./'):
     with torch.no_grad():
+        state = False
         if save: 
             if len(model.tasks) == 1:
-                path = f"../results/{model.name}"
+                path = f"./results/{model.name}"
+                if not os.path.exists(path):
+                        os.makedirs(path)
             else:
                 dwa_string = 'dwa' if dwa_trained else 'equal'
-                path = f"../results/{model.name}_{dwa_string}"
-            if not os.path.exists(path):
-                os.makedirs(path)
+                path = save_path +  f"results/{model.name}_{dwa_string}"
+                # if not os.path.exists(path):
+                #     os.makedirs(path)
+                for t in model.tasks:
+                    if not os.path.exists(path + f'/{t}'):
+                        os.makedirs(path + f'/{t}')
 
         stats = {'depth':{'mae': MeanAbsoluteError(), 
                 'mre': MeanAbsoluteRelativeError()},
@@ -218,87 +233,25 @@ def visualize_results(model, device, x, y, id_result, dwa_trained=False, save=Tr
                 out_plt = output[t][i].cpu().permute(1, 2, 0) if len(output[t].shape) == 4 else output[t][i].cpu()
                 ax[1].imshow(out_plt)
                 ax[1].set_title(f'Predicted {t}')
-                plt.show()
-                if save:
-                    plt.savefig(f"{path}/{t}_results{id_result+i}.png")
-                if t == 'segmentation':
-                    output_stats, y_stats = output_stats_seg[i], y_stats_seg[i]
-                else:
-                    mask = mask_invalid_pixels(y[t])
-                    output_stats, y_stats = output[t][i].masked_select(mask[i]), y[t][i].masked_select(mask[i])
-                for s in stats[t].keys():
-                    if s == 'ad':
-                        for k in stats[t][s].keys():
-                            print(f"{s} {k}: {stats[t][s][k](output_stats, y_stats).item()}")
+                plt.savefig(f"{path}/{t}/{t}_results{id_result+i}.png") if save else None
+                if out:
+                    plt.show()
+                    if t == 'segmentation':
+                        output_stats, y_stats = output_stats_seg[i], y_stats_seg[i]
+                    elif t == 'depth':
+                        mask = mask_invalid_pixels(y[t])
+                        output_stats, y_stats = output[t][i].masked_select(mask[i]), y[t][i].masked_select(mask[i])
                     else:
-                        print(f"{s}: {stats[t][s](output_stats, y_stats).item()}")
-
-# def save_results(model_name, dataset_name):
-#     if not os.path.exists(f"../models/{dataset_name}/{model_name}"): 
-#         os.makedirs(f"../models/{dataset_name}/{model_name}")
-#     plt.savefig(f"../models/{model_name}/{model_name}_results.png")
-    
-# def visualize_results_singletask(model, img_x, img_y, device, save=False):
-#     with torch.no_grad():
-#         model.eval()
-#         model = model.to(device)
-#         img_x = img_x.to(device).to(torch.float)
-#         output = model(img_x.unsqueeze(0))
-        
-#         plt.imshow(img_x.cpu().permute(1, 2, 0))
-#         _, ax = plt.subplots(1, 2, figsize=(11, 7))
-#         if model.name == 'depthnet':
-#             pred = output.squeeze(0,1).cpu()
-#             img_y = img_y.to(torch.float)
-#             ax[0].imshow(img_y, cmap='gray')
-#             ax[0].set_title('Ground Truth Depth')
-#             ax[1].imshow(pred.detach().numpy(), cmap='gray')
-#             ax[1].set_title('Predicted Depth')
-#             plt.show()
-#             print(f"Mean Absolute Error: {mean_absolute_error(pred, img_y).item()}")
-#             print(f"Mean Absolute Relative Error: {mean_absolute_relative_error(pred, img_y).item()}")
-#         else:
-#             pred = torch.argmax(output, dim=1).squeeze(0).cpu()
-#             pred_seg_flat, img_seg_flat = ignore_index_seg(pred, img_y)
-#             idx = img_y==-1
-#             img_y = img_y.to(torch.long)
-#             img_y[idx] = 0
-#             ax[0].imshow(img_y)
-#             ax[0].set_title('Ground Truth Segmentation')
-#             ax[1].imshow(pred.detach().numpy())
-#             ax[1].set_title('Predicted Segmentation')
-#             plt.show()
-#             print(f"Accuracy: {multiclass_accuracy(pred, img_y, num_classes=model.classes, multidim_average='global', average='micro').item()}")
-#             print(f"Mean IoU: {mean_iou(pred_seg_flat, img_seg_flat, num_classes=model.classes, per_class=False, include_background=False, input_format='index').item()}")
-#         save_results(model.name) if save else None
-
-# def visualize_results_multitask(model, img, img_seg, img_dis, device, save=False):
-#     with torch.no_grad():
-#         model.eval()
-#         img = img.to(device).to(torch.float)
-#         img_seg = img_seg.to(torch.long)
-#         img_dis = img_dis.to(torch.float)
-#         output_seg, output_dis = model(img.unsqueeze(0))
-#         pred_seg = torch.argmax(output_seg, dim=1).squeeze(0).cpu()
-#         pred_dis = output_dis.squeeze(0, 1).cpu()
-#         pred_seg_flat, img_seg_flat = ignore_index_seg(pred_seg, img_seg)
-#         idx = img_seg==-1
-#         img_seg[idx] = 0
-
-#         plt.imshow(img.cpu().permute(1, 2, 0))
-
-#         _, ax = plt.subplots(2, 2, figsize=(11, 7))
-#         ax[0][0].imshow(img_seg)
-#         ax[0][0].set_title('Ground Truth Segmentation')
-#         ax[0][1].imshow(pred_seg.detach().numpy())
-#         ax[0][1].set_title('Predicted Segmentation')
-#         ax[1][0].imshow(img_dis, cmap='gray')
-#         ax[1][0].set_title('Ground Truth Depth')
-#         ax[1][1].imshow(pred_dis.detach().numpy(), cmap='gray')
-#         ax[1][1].set_title('Predicted Depth')
-#         plt.show()
-#         print(f"Accuracy: {multiclass_accuracy(pred_seg_flat, img_seg_flat, num_classes=model.classes, multidim_average='global', average='micro').item()}")
-#         print(f"Mean IoU: {mean_iou(pred_seg_flat, img_seg_flat, num_classes=model.classes, per_class=False, include_background=False, input_format='index').item()}")
-#         print(f"Mean Absolute Error: {mean_absolute_error(pred_dis, img_dis).item()}")
-#         print(f"Mean Absolute Relative Error: {mean_absolute_relative_error(pred_dis, img_dis).item()}")
-#         save_results(model.name) if save else None
+                        output_stats, y_stats = output[t][i].unsqueeze(0), y[t][i].unsqueeze(0)
+                    for s in stats[t].keys():
+                        if s == 'ad':
+                            ad_stat = stats[t][s](output_stats, y_stats)
+                            for k in ad_stat.keys():
+                                print(f'{s}_{k}: {ad_stat[k]}') if k != 'tolls' else print(f'{s}_{k}: {ad_stat[k].cpu().numpy()}')
+                        else:
+                            print(f"{s}: {stats[t][s](output_stats, y_stats).item()}")
+                plt.close()
+            if id_result + i == nresults-1:
+                state = True
+                break
+        return state

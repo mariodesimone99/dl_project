@@ -1,5 +1,0 @@
-model_name : "splitnet"
-filter : [64, 128, 256, 512, 512]
-tasks: ["segmentation", "depth"]
-mid_layers : 4
-depth_activation: "relu"

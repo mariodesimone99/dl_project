@@ -1,4 +1,0 @@
-model_name : "stan_seg"
-filter : [64, 128, 256, 512, 512]
-mid_layers: 4
-tasks: ['segmentation']

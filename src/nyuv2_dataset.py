@@ -17,7 +17,7 @@ class NYUv2Dataset(Dataset):
         self.labels.sort()
         self.depth.sort()
         self.normals.sort()
-        self.classes = 13
+        self.classes = 12 # without taking into account background
 
     def __len__(self):
         return len(self.images)

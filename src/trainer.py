@@ -10,9 +10,12 @@ import os
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
+#TODO: check relative path (train function starts from the root project folder while trainer from the src folder)
+#TODO: make some trials to check the attach with tmux
+
 class Trainer:
-    def __init__(self, model, opt, dataset_name, device, dwa=False, save_path='../models/'):
-        self.path = save_path
+    def __init__(self, model, opt, dataset_name, device, dwa=False, save_path='./'):
+        self.path = save_path + 'models/'
         self.device = device
         self.model = model.to(self.device)
         self.multitask = True if len(self.model.tasks) > 1 else False
@@ -45,7 +48,7 @@ class Trainer:
         self.plt_lambdas = {k:[1] for k in self.model.tasks}
         self.dwa_string = '_dwa' if self.dwa else '_equal'
         self.dwa_string = '' if not self.multitask else self.dwa_string
-        self.writer = SummaryWriter(f'../runs/{dataset_name}/{self.model.name}{self.dwa_string}')
+        self.writer = SummaryWriter(save_path + f'/runs/{dataset_name}/{self.model.name}{self.dwa_string}')
         self.lambdas = {k: torch.tensor(1).to(self.device).to(torch.float) for k in self.model.tasks}
 
     # Convention: y_list = [y_seg, y_dis, y_normal]
@@ -66,7 +69,6 @@ class Trainer:
             else: # t == 'normal'
                 update_stats(stats[t], y_preds[t], y_dict[t])
         return losses
-
 
     def _val_epoch(self, val_dl, stats_val):
         with torch.no_grad():
