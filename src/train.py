@@ -46,8 +46,8 @@ if __name__ == "__main__":
 
     config_model = yaml.safe_load(open(sys.argv[1], "r"))
     config_dataset = yaml.safe_load(open(sys.argv[2], "r"))
-    #config_model = yaml.safe_load(open("./config/prova.yaml", "r"))
-    #config_dataset = yaml.safe_load(open("./config/prova_dataset.yaml", "r"))
+    # config_model = yaml.safe_load(open("./config/cross_stitch.yaml", "r"))
+    # config_dataset = yaml.safe_load(open("./config/cityscapes.yaml", "r"))
     config = {**config_dataset, **config_model}
     config['depth_activation'] = nn.ReLU() if config['depth_activation'] == 'relu' else nn.Sigmoid()
     config['dwa'] = False
@@ -57,14 +57,14 @@ if __name__ == "__main__":
     LEARNING_RATE = config['lr']
     DEVICE = "cuda:1" if torch.cuda.is_available() else "cpu"
     if len(config['tasks']) > 1:
-        ok = False 
+        ok = True
         while ok:
             w_scheme = input(f'Dynamic Weight Average (y/n)?: ')
             if w_scheme == "y":
                 config['dwa'] = True
-                ok = True
+                ok = False
             elif w_scheme == "n":
-                ok = True
+                ok = False
             else:
                 continue
 
