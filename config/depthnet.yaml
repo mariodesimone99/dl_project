@@ -1,3 +1,4 @@
 model_name : "depthnet"
 filter: [64, 128, 256, 512, 512]
 mid_layers: 6
+tasks: ["depth"]

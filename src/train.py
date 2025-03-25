@@ -46,8 +46,6 @@ if __name__ == "__main__":
 
     config_model = yaml.safe_load(open(sys.argv[1], "r"))
     config_dataset = yaml.safe_load(open(sys.argv[2], "r"))
-    # config_model = yaml.safe_load(open("./config/cross_stitch.yaml", "r"))
-    # config_dataset = yaml.safe_load(open("./config/cityscapes.yaml", "r"))
     config = {**config_dataset, **config_model}
     config['depth_activation'] = nn.ReLU() if config['depth_activation'] == 'relu' else nn.Sigmoid()
     config['dwa'] = False
