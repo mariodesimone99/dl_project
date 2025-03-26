@@ -37,5 +37,5 @@ class STAN(nn.Module):
         enc_dict, dec_dict, _, _ = self.sh_net(x)
         logits = self.attnet(enc_dict, dec_dict)
         logits = self.head(logits)
-        logits_dict = {self.task[0]: logits}
+        logits_dict = {self.tasks[0]: logits}
         return logits_dict
