@@ -4,7 +4,7 @@ from torchmetrics.segmentation import MeanIoU
 from torchmetrics.classification import MulticlassAccuracy
 from torchmetrics.regression import MeanAbsoluteError
 from utils import MeanAbsoluteRelativeError, AngleDistance
-from utils import plot_dict, compute_lambdas, reset_stats, update_stats, mask_invalid_pixels, make_plt_dict, loss_handler, stats_handler, move_tensors 
+from utils import plot_dict, compute_lambdas, reset_stats, update_stats, mask_invalid_pixels, make_plt_dict, loss_handler, stats_handler, move_tensors, build_stats_dict
 from basic_modules import L1Loss, DotProductLoss
 import os
 from tqdm import tqdm
@@ -20,19 +20,14 @@ class Trainer:
         self.dataset_name = dataset_name
         self.loss_fn = {}
         self.dwa = dwa
-        self.stats = {t: {} for t in model.tasks}
-
+        self.stats = build_stats_dict(self.model, self.device)
+        
         for t in model.tasks:
             if t == 'segmentation':
-                self.stats[t]['miou'] = MeanIoU(num_classes=self.model.classes, per_class=False, include_background=False, input_format='index').to(self.device)
-                self.stats[t]['pix_acc'] = MulticlassAccuracy(num_classes=self.model.classes, multidim_average='global', average='micro').to(self.device)
                 self.loss_fn[t] = nn.CrossEntropyLoss(ignore_index=-1)
             elif t =='depth':
-                self.stats[t]['mae'] = MeanAbsoluteError().to(self.device)
-                self.stats[t]['mre'] = MeanAbsoluteRelativeError().to(self.device)
                 self.loss_fn[t] = L1Loss()
             elif t == 'normal':
-                self.stats[t]['ad'] = AngleDistance().to(self.device)
                 self.loss_fn[t] = DotProductLoss()
             else:
                 raise ValueError("Invalid task")

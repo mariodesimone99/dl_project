@@ -152,31 +152,22 @@ def stats_handler(plt_stats, stats, writer, epoch, train=True, out=True):
             writer_string = f'{train_str}/stats/{t}'
             writer.add_scalar(writer_string, stat_comp, epoch)
 
-def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=False, save=True, out=False, save_path='./'):
+def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=False, save=True, out=False, save_path='./', dataset_str='cityscapes'):
     with torch.no_grad():
         state = False
         if save: 
             if len(model.tasks) == 1:
-                path = f"./results/{model.name}"
+                path = save_path + f"results/{dataset_str}/{model.name}"
                 if not os.path.exists(path):
-                        os.makedirs(path)
+                    os.makedirs(path)
             else:
                 dwa_string = 'dwa' if dwa_trained else 'equal'
-                path = save_path +  f"results/{model.name}_{dwa_string}"
+                path = save_path +  f"results/{dataset_str}/{model.name}_{dwa_string}"
                 for t in model.tasks:
                     if not os.path.exists(path + f'/{t}'):
                         os.makedirs(path + f'/{t}')
 
-        stats = {'depth':{'mae': MeanAbsoluteError(), 
-                'mre': MeanAbsoluteRelativeError()},
-
-                'segmentation':{'miou': MeanIoU(num_classes=model.classes, per_class=False, include_background=False, input_format='index'), 
-                'pix_acc': MulticlassAccuracy(num_classes=model.classes, multidim_average='global', average='micro')},
-
-                'normal':{'ad': AngleDistance()}}
-        for t in stats.keys():
-            for s in stats[t].keys():
-                stats[t][s] = stats[t][s].to(device)
+        stats = build_stats_dict(model, device)
         model.to(device)
         B, _, _, _ = x.shape
         model.eval()
@@ -197,7 +188,8 @@ def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=F
                 out_plt = output[t][i].cpu().permute(1, 2, 0) if len(output[t].shape) == 4 else output[t][i].cpu()
                 ax[1].imshow(out_plt)
                 ax[1].set_title(f'Predicted {t}')
-                plt.savefig(f"{path}/{t}/{t}_results{id_result+i}.png") if save else None
+                if save:
+                    plt.savefig(f"{path}/{t}/{t}_results{id_result+i}.png") if len(model.tasks) > 1 else plt.savefig(f"{path}/{t}_results{id_result+i}.png")
                 if out:
                     plt.show()
                     if t == 'segmentation':
@@ -219,3 +211,18 @@ def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=F
                 state = True
                 break
         return state
+    
+def build_stats_dict(model, device):
+    stats = {t: {} for t in model.tasks}
+    for t in model.tasks:
+        if t == 'segmentation':
+            stats[t]['miou'] = MeanIoU(num_classes=model.classes, per_class=False, include_background=False, input_format='index').to(device)
+            stats[t]['pix_acc'] = MulticlassAccuracy(num_classes=model.classes, multidim_average='global', average='micro').to(device)
+        elif t =='depth':
+            stats[t]['mae'] = MeanAbsoluteError().to(device)
+            stats[t]['mre'] = MeanAbsoluteRelativeError().to(device)
+        elif t == 'normal':
+            stats[t]['ad'] = AngleDistance().to(device)
+        else:
+            raise ValueError("Invalid task")
+    return stats
