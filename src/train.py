@@ -91,7 +91,7 @@ if __name__ == "__main__":
     id_result = 0
     nresults = 10
     for image, out in val_dl:
-        state = visualize_results(model, DEVICE, image, out, id_result)
+        state = visualize_results(model, DEVICE, image, out, id_result, nresults, dwa_trained=config['dwa'], save=True, out=False, save_path='./', dataset_str=config['dataset_name'])
         id_result += BATCH_SIZE
         if state:
             break
