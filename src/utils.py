@@ -183,10 +183,10 @@ def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=F
             for t in model.tasks:
                 _, ax = plt.subplots(1, 2, figsize=(11, 7))
                 y_plt = y[t][i].cpu().permute(1, 2, 0) if len(y[t].shape) == 4 else y[t][i].cpu()
-                ax[0].imshow(y_plt)
+                ax[0].imshow(y_plt) if t != 'depth' else ax[0].imshow(y_plt.cpu(), cmap='gray')
                 ax[0].set_title(f'Ground Truth {t}')
                 out_plt = output[t][i].cpu().permute(1, 2, 0) if len(output[t].shape) == 4 else output[t][i].cpu()
-                ax[1].imshow(out_plt)
+                ax[1].imshow(out_plt) if t != 'depth' else ax[1].imshow(out_plt.cpu(), cmap='gray')
                 ax[1].set_title(f'Predicted {t}')
                 if save:
                     plt.savefig(f"{path}/{t}/{t}_results{id_result+i}.png") if len(model.tasks) > 1 else plt.savefig(f"{path}/{t}_results{id_result+i}.png")
