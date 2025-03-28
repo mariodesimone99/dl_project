@@ -1,5 +1,5 @@
 for f in *.sh; do
   if [ "$f" != "train_all.sh" ]; then 
-    bash $f
+    bash $f || break
   fi
 done
