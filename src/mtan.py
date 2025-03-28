@@ -81,7 +81,7 @@ class AttNet(nn.Module):
         return logits
     
 class MTAN(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation=nn.ReLU()):
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal']):
         super().__init__()
         task_str = '_'
         self.classes = classes + 1 #background
@@ -96,7 +96,7 @@ class MTAN(nn.Module):
             elif task == 'depth':
                 self.heads[task] = nn.Sequential(
                     nn.Conv2d(filter[0], 1, kernel_size=1),
-                    depth_activation
+                    nn.ReLU()
                 )
                 task_str += 'dep_'
             elif task == 'normal':

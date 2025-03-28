@@ -9,3 +9,6 @@
 /results
 src/__pycache__/
 src/prova.ipynb
+models_tmp/
+results_tmp/
+runs_tmp/

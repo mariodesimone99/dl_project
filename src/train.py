@@ -19,14 +19,14 @@ from trainer import Trainer
 def instance_model(config):
     filter = config['filter']
     models_dict = {}
-    models_dict['cross_stitch'] = CrossStitchNet(filter=filter, classes=config['classes'], tasks=config['tasks'], depth_activation=config['depth_activation'])
-    models_dict['densenet'] = DenseNet(filter=filter, classes=config['classes'], mid_layers=config['mid_layers'], tasks=config['tasks'], depth_activation=config['depth_activation'])
-    models_dict['depthnet'] = DepthNet(filter=filter, mid_layers=config['mid_layers'], depth_activation=config['depth_activation'])
-    models_dict['mtan'] = MTAN(filter=filter, mid_layers=config['mid_layers'], classes=config['classes'], tasks=config['tasks'], depth_activation=config['depth_activation'])
+    models_dict['cross_stitch'] = CrossStitchNet(filter=filter, classes=config['classes'], tasks=config['tasks'])
+    models_dict['densenet'] = DenseNet(filter=filter, classes=config['classes'], mid_layers=config['mid_layers'], tasks=config['tasks'])
+    models_dict['depthnet'] = DepthNet(filter=filter, mid_layers=config['mid_layers'])
+    models_dict['mtan'] = MTAN(filter=filter, mid_layers=config['mid_layers'], classes=config['classes'], tasks=config['tasks'])
     models_dict['normalnet'] = NormalNet(filter=filter, mid_layers=config['mid_layers'])
     models_dict['segnet'] = SegNet(filter=filter, mid_layers=config['mid_layers'], classes=config['classes'])
-    models_dict['splitnet'] = SplitNet(filter=filter, mid_layers=config['mid_layers'], classes=config['classes'], tasks=config['tasks'], depth_activation=config['depth_activation'])
-    models_dict['stan'] = STAN(filter=filter, mid_layers=config['mid_layers'], classes=config['classes'], task=config['tasks'][0], depth_activation=config['depth_activation'])
+    models_dict['splitnet'] = SplitNet(filter=filter, mid_layers=config['mid_layers'], classes=config['classes'], tasks=config['tasks'])
+    models_dict['stan'] = STAN(filter=filter, mid_layers=config['mid_layers'], classes=config['classes'], task=config['tasks'][0])
     if config['model_name'] not in models_dict.keys():
         raise ValueError(f"Model {config['model_name']} not supported")
     return models_dict[config['model_name']]
@@ -47,7 +47,6 @@ if __name__ == "__main__":
     config_model = yaml.safe_load(open(sys.argv[1], "r"))
     config_dataset = yaml.safe_load(open(sys.argv[2], "r"))
     config = {**config_dataset, **config_model}
-    config['depth_activation'] = nn.ReLU() if config['depth_activation'] == 'relu' else nn.Sigmoid()
     config['dwa'] = False
 
     EPOCHS = config['epochs']
@@ -65,7 +64,6 @@ if __name__ == "__main__":
                 ok = False
             else:
                 continue
-
 
     print(f"Using device: {DEVICE}")
     print(f"Training for {EPOCHS} epochs")

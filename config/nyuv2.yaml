@@ -1,5 +1,4 @@
 classes: 12
-depth_activation: "sigmoid"
 batch_size: 2
 epochs: 100
 lr: 0.0001

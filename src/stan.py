@@ -4,7 +4,7 @@ from basic_modules import SharedNet, Normalize
 from utils import init_weights
 
 class STAN(nn.Module):
-    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=4, classes=7, task='segmentation', depth_activation=nn.ReLU()):
+    def __init__(self, filter=[64, 128, 256, 512, 512], mid_layers=4, classes=7, task='segmentation'):
         super().__init__()
         self.tasks = task
         self.sh_net = SharedNet(filter, mid_layers)
@@ -19,7 +19,7 @@ class STAN(nn.Module):
             self.classes = 1
             self.head = nn.Sequential(
             nn.Conv2d(filter[0], 1, kernel_size=1), 
-            depth_activation
+            nn.ReLU()
         )
         elif self.tasks == ['normal']: # normals estimation
             self.name = "stan_nor"

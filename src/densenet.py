@@ -58,7 +58,7 @@ class TaskNet(nn.Module):
         return logits
 
 class DenseNet(nn.Module):
-    def __init__(self, filter = [64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal'], depth_activation=nn.ReLU()):
+    def __init__(self, filter = [64, 128, 256, 512, 512], mid_layers=0, classes=7, tasks=['segmentation', 'depth', 'normal']):
         super().__init__()
         task_str = '_'
         
@@ -71,7 +71,7 @@ class DenseNet(nn.Module):
                 self.tasks_net[task] = TaskNet(filter, classes=self.classes, activation=nn.Identity())
                 task_str += 'seg_'
             elif task == 'depth':
-                self.tasks_net[task] = TaskNet(filter, classes=1, activation=depth_activation)
+                self.tasks_net[task] = TaskNet(filter, classes=1, activation=nn.ReLU())
                 task_str += 'dep_'
             elif task == 'normal':
                 self.tasks_net[task] = TaskNet(filter, classes=3, activation=nn.Sequential(nn.Tanh(), Normalize()))
