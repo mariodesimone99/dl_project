@@ -51,9 +51,9 @@ Finally the `demo.ipynb` notebook, has everything necessary to perform the train
 
 ## Datasets
 For the experiments have been used preprocessed (by the author of the MTAN paper):
-- [NYUv2](https://www.dropbox.com/scl/fo/p7n54hqfpfyc6fe6n62qk/AKVb28ZmgDiGdRMNkX5WJvo?rlkey=hcf31bdrezqjih36oi8usjait&e=1&dl=0): dataset for segmentation, depth and normal estimation, [288x384] images of indoor scenes
+- [NYUv2](https://www.dropbox.com/scl/fo/p7n54hqfpfyc6fe6n62qk/AKVb28ZmgDiGdRMNkX5WJvo?rlkey=hcf31bdrezqjih36oi8usjait&e=1&dl=0): dataset for segmentation, depth and normal estimation, [288x384] images of indoor scenes (experiments made with 7-classes instance)
 
-- [Cityscapes](https://www.dropbox.com/scl/fo/x2i67p14fxy3d3178i8ln/AGZHvvk82ayNbcBHp-N0JXg?rlkey=ebhrpay2cgqnr0ew5vmti2diy&e=1&dl=0): dataset for segmentation and depth estimation of outdoor scenes
+- [Cityscapes](https://www.dropbox.com/scl/fo/x2i67p14fxy3d3178i8ln/AGZHvvk82ayNbcBHp-N0JXg?rlkey=ebhrpay2cgqnr0ew5vmti2diy&e=1&dl=0): dataset for segmentation and depth estimation of outdoor scenes (experiments made with 13-classes instance)
 
 # Code Comments
 
