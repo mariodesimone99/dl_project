@@ -1,5 +1,7 @@
 # Multi-Task Learning Models
+
 This project is an implementation of the architectures [Cross-Stitch Network](https://arxiv.org/pdf/1604.03539) and [Multi-Task Attention Network](https://arxiv.org/pdf/1803.10704), to perform comparison between single-task models and multi-task ones.
+
 The experiments have been made trying to reproduce results obtained in the MTAN paper, so models have been trained on Cityscapes and NYUv2 datasets (see section [Datasets](#datasets) for details)
 
 ## Index
@@ -24,16 +26,27 @@ Every folder with the exception of **`src/`** and **`config/`** has a subfolder 
 ## How to start
 
 In the root directory there is a file `requirements.txt`, conatining the list of all the packages used in the project, using the line
+
 `pip install -r requirements.txt`
+
 Once installed the requirements, choose a dataset and navigate through the relative `scripts` folder (for example for cityscapes):
+
 `cd scripts/cityscapes`
+
 then choose a model and execute (for example mtan):
+
 `bash mtan_train.sh`
+
 for multi-task models the terminal will ask if it should perform Dynamic Weight Averaging or instead use equal weights scheme.
+
 Change the model architecture is easy, just navigate to its config folder, in the previous example:
+
 `cd config/mtan.yaml`
+
 To add a task it is necessary to go to the corresponding model source code, and add a task dependant head, in the example:
+
 `cd src/mtan.py`
+
 Finally the `demo.ipynb` notebook, has everything necessary to perform the training and the evaluation of a model in the interactive environment of a jupyter notebook
 
 ## Datasets
