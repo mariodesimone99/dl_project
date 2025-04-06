@@ -57,4 +57,6 @@ For the experiments have been used preprocessed (by the author of the MTAN paper
 
 # Code Comments
 
-The code has an extensive use of dictionaries to make abstraction of the task dependence, this let a loose coupling between task, training, statistics computation and model definition, to add a task it is necessary to implement its head in the model, define the statistics and add to the training pipeline.
+The code has an extensive use of dictionaries to make abstraction of the task dependence, this let a loose coupling between task, training, statistics computation and model definition. 
+
+To add a task it is necessary to implement its head in the model, define the statistics and add to the training pipeline.
