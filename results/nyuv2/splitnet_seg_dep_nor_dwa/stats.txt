@@ -1,0 +1,9 @@
+miou: 0.0927
+pix_acc: 0.4661
+mae: 0.8289
+mre: 0.3803
+ad_mean: 42.5887
+ad_median: 40.0455
+tolls_11.25: 0.0836
+tolls_22.5: 0.2640
+tolls_30: 0.3758

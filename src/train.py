@@ -1,7 +1,6 @@
 import sys
 import yaml
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 from utils import count_params, visualize_results
 from cityscapes_dataset import CityscapesDataset

@@ -1,9 +1,5 @@
 import torch
 import torch.nn as nn
-from torchmetrics.segmentation import MeanIoU
-from torchmetrics.classification import MulticlassAccuracy
-from torchmetrics.regression import MeanAbsoluteError
-from utils import MeanAbsoluteRelativeError, AngleDistance
 from utils import plot_dict, compute_lambdas, reset_stats, update_stats, mask_invalid_pixels, make_plt_dict, loss_handler, stats_handler, move_tensors, build_stats_dict
 from basic_modules import L1Loss, DotProductLoss
 import os

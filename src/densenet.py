@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from basic_modules import ConvLayer, SharedNet, Normalize
 from utils import init_weights
 
