@@ -180,6 +180,12 @@ def visualize_results(model, device, x, y, id_result, nresults=10, dwa_trained=F
             y_stats_seg = y['segmentation']*mask
             y['segmentation'] *= mask
         for i in range(B):
+            plt.imshow(x[i].cpu().permute(1, 2, 0))
+            plt.title('Input Image')
+            if save:
+                if not os.path.exists(path + '/inputs'):
+                    os.makedirs(path + '/inputs')
+                plt.savefig(f"{path}/inputs/input_image{id_result+i}.png")
             for t in model.tasks:
                 _, ax = plt.subplots(1, 2, figsize=(11, 7))
                 y_plt = y[t][i].cpu().permute(1, 2, 0) if len(y[t].shape) == 4 else y[t][i].cpu()
