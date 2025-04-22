@@ -7,8 +7,8 @@ The experiments have been made trying to reproduce results obtained in the MTAN 
 ## Index
 
 - [Project Structure](#project-structure)
-- [How to Start](#how-to-start)
 - [Datasets](#datasets)
+- [How to Start](#how-to-start)
 - [Code Comments](#code-comments)
 
 ## Project Structure
@@ -23,11 +23,19 @@ The experiments have been made trying to reproduce results obtained in the MTAN 
 
 Every folder with the exception of **`src/`** and **`config/`** has a subfolder for each dataset to isolate the experiments, models weights etc...
 
+## Datasets
+For the experiments have been used preprocessed (by the author of the MTAN paper):
+- [NYUv2](https://www.dropbox.com/scl/fo/p7n54hqfpfyc6fe6n62qk/AKVb28ZmgDiGdRMNkX5WJvo?rlkey=hcf31bdrezqjih36oi8usjait&e=1&dl=0): dataset for segmentation, depth and normal estimation, [288x384] images of indoor scenes (experiments made with 7-classes instance)
+
+- [Cityscapes](https://www.dropbox.com/scl/fo/x2i67p14fxy3d3178i8ln/AGZHvvk82ayNbcBHp-N0JXg?rlkey=ebhrpay2cgqnr0ew5vmti2diy&e=1&dl=0): dataset for segmentation and depth estimation of outdoor scenes (experiments made with 13-classes instance)
+
 ## How to start
 
 In the root directory there is a file `requirements.txt`, conatining the list of all the packages used in the project, using the line
 
 `pip install -r requirements.txt`
+
+Put in the root, a folder called `dataset` in which the two datasets should be placed under the name `cityscapes_preprocessed` and `nyuv2_preprocessed`.
 
 Once installed the requirements, choose a dataset and navigate through the relative `scripts` folder (for example for cityscapes):
 
@@ -48,12 +56,6 @@ To add a task it is necessary to go to the corresponding model source code, and 
 `cd src/mtan.py`
 
 Finally the `demo.ipynb` notebook, has everything necessary to perform the training and the evaluation of a model in the interactive environment of a jupyter notebook
-
-## Datasets
-For the experiments have been used preprocessed (by the author of the MTAN paper):
-- [NYUv2](https://www.dropbox.com/scl/fo/p7n54hqfpfyc6fe6n62qk/AKVb28ZmgDiGdRMNkX5WJvo?rlkey=hcf31bdrezqjih36oi8usjait&e=1&dl=0): dataset for segmentation, depth and normal estimation, [288x384] images of indoor scenes (experiments made with 7-classes instance)
-
-- [Cityscapes](https://www.dropbox.com/scl/fo/x2i67p14fxy3d3178i8ln/AGZHvvk82ayNbcBHp-N0JXg?rlkey=ebhrpay2cgqnr0ew5vmti2diy&e=1&dl=0): dataset for segmentation and depth estimation of outdoor scenes (experiments made with 13-classes instance)
 
 # Code Comments
 
