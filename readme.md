@@ -31,13 +31,13 @@ For the experiments have been used preprocessed (by the author of the MTAN paper
 
 ## How to start
 
-In the root directory there is a file `requirements.txt`, conatining the list of all the packages used in the project, using the line
+In the root directory there is a file `requirements.txt`, containing a list of all the packages used in the project, install using the line
 
 `pip install -r requirements.txt`
 
 Put in the root, a folder called `dataset` in which the two datasets should be placed under the name `cityscapes_preprocessed` and `nyuv2_preprocessed`.
 
-Once installed the requirements, choose a dataset and navigate through the relative `scripts` folder (for example for cityscapes):
+Once installed the requirements, if you want to train: choose a dataset and navigate through the relative `scripts` folder (for example for cityscapes):
 
 `cd scripts/cityscapes`
 
@@ -50,10 +50,6 @@ for multi-task models the terminal will ask if it should perform Dynamic Weight 
 Change the model architecture is easy, just navigate to its config folder, in the previous example:
 
 `cd config/mtan.yaml`
-
-To add a task it is necessary to go to the corresponding model source code, and add a task dependant head, in the example:
-
-`cd src/mtan.py`
 
 Finally the `demo.ipynb` notebook, has everything necessary to perform the training and the evaluation of a model in the interactive environment of a jupyter notebook
 
